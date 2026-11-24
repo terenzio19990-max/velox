@@ -70,21 +70,25 @@ const Roads = App.Roads = (()=>{
   /* =================== INCIDENTI E CODE (TomTom) =================== */
   const INC={1:['accident','Incidente'],2:['weather','Nebbia'],3:['hazard','Condizioni pericolose'],4:['weather','Pioggia'],5:['weather','Ghiaccio'],6:['traffic','Coda'],7:['closure','Corsia chiusa'],8:['closure','Strada chiusa'],9:['hazard','Lavori in corso'],10:['weather','Vento forte'],11:['weather','Allagamento'],14:['hazard','Veicolo in panne']};
   const MAG=['','lieve','moderata','forte','chiusa'];
-  async function incidentsBox(b){if(!S.tomtomKey)return [];
+  async function incidentsBox(b){if(!S.tomtomKey||!App.TT||!App.TT.can('inc'))return [];App.TT.use('inc');
     const fields='{incidents{type,geometry{type,coordinates},properties{id,iconCategory,magnitudeOfDelay,events{description,code},startTime,from,to,length,delay,roadNumbers}}}';
     const u=`https://api.tomtom.com/traffic/services/5/incidentDetails?key=${encodeURIComponent(S.tomtomKey)}&bbox=${b.map(x=>x.toFixed(4)).join(',')}&fields=${encodeURIComponent(fields)}&language=it-IT&timeValidityFilter=present`;
     const r=await API.tfetch(u,{},12000);const j=await r.json();if(!j.incidents)return [];
     return j.incidents.map(x=>{const p=x.properties||{};const t=INC[p.iconCategory]||['hazard','Evento'];const g=x.geometry.type==='Point'?[x.geometry.coordinates]:x.geometry.coordinates;
       return {id:'t'+p.id,k:t[0],l:(p.events&&p.events[0]&&p.events[0].description)||t[1],cat:p.iconCategory,mag:p.magnitudeOfDelay||0,delay:p.delay||0,len:p.length||0,from:p.from||'',to:p.to||'',roads:(p.roadNumbers||[]).join(', '),start:p.startTime?Date.parse(p.startTime):null,g:g.map(c=>[c[1],c[0]])}})}
-  async function routeIncidents(rt){if(!S.tomtomKey)return null;if(rt._inc&&Date.now()-rt._incAt<4*60e3)return rt._inc;rt._incAt=Date.now();
-    rt._inc=(async()=>{const T=0.7;const tiles=new Set();for(let i=0;i<rt.coords.length;i+=4){const p=rt.coords[i];tiles.add(Math.floor(p[0]/T)+'_'+Math.floor(p[1]/T))}
-      const list=[];const seen=new Set();for(const t of [...tiles].slice(0,30)){const [a,b]=t.split('_').map(Number);try{for(const x of await incidentsBox([b*T,a*T,(b+1)*T,(a+1)*T]))if(!seen.has(x.id)){seen.add(x.id);list.push(x)}}catch(e){}}
+  async function routeIncidents(rt){if(!S.tomtomKey)return null;if(rt._inc&&Date.now()-rt._incAt<10*60e3)return rt._inc;rt._incAt=Date.now();
+    // poche richieste: un solo riquadro se il percorso sta in 9.000 km² (limite TomTom 10.000), altrimenti riquadri grandi solo dove passa
+    rt._inc=(async()=>{let la0=90,la1=-90,lo0=180,lo1=-180;for(const p of rt.coords){if(p[0]<la0)la0=p[0];if(p[0]>la1)la1=p[0];if(p[1]<lo0)lo0=p[1];if(p[1]>lo1)lo1=p[1]}
+      const pad=0.02;const area=(la1-la0+2*pad)*111*(lo1-lo0+2*pad)*111*Math.cos(G.rad((la0+la1)/2));const boxes=[];
+      if(area<=9000)boxes.push([lo0-pad,la0-pad,lo1+pad,la1+pad]);
+      else{const T=0.85;const tiles=new Set();for(let i=0;i<rt.coords.length;i+=3){const p=rt.coords[i];tiles.add(Math.floor(p[0]/T)+'_'+Math.floor(p[1]/T))}for(const t of tiles){const [a,b]=t.split('_').map(Number);boxes.push([b*T,a*T,(b+1)*T,(a+1)*T])}}
+      const list=[];const seen=new Set();for(const bx of boxes.slice(0,12)){try{for(const x of await incidentsBox(bx))if(!seen.has(x.id)){seen.add(x.id);list.push(x)}}catch(e){}}
       const P=(rt._an||(rt._an=analyze(rt.coords))).P;const on=[];
       for(const x of list){const first=G.proj(x.g[0][0],x.g[0][1],P),last=G.proj(x.g[x.g.length-1][0],x.g[x.g.length-1][1],P);
         if(first.d<60&&(x.g.length===1||(last.d<60&&last.along>=first.along-20)))on.push(Object.assign(x,{along:first.along,alongEnd:last.along}))}
       on.sort((a,b)=>a.along-b.along);return {all:list,on,delay:on.reduce((s,x)=>s+(x.delay||0),0)}})();rt._inc.catch(()=>{rt._inc=null});return rt._inc}
-  let incArea=[],incAt=0,incPos=null;
-  async function areaIncidents(f){if(!S.tomtomKey||Date.now()-incAt<3*60e3&&incPos&&G.dist(incPos.lat,incPos.lon,f.lat,f.lon)<8000)return;incAt=Date.now();incPos={lat:f.lat,lon:f.lon};
+  let incArea=[],incAt=0,incPos=null,incTimer=0;
+  async function areaIncidents(f){if(!S.tomtomKey||!App.state.driving||(f.spd||0)<4)return;if(incPos&&Date.now()-incAt<10*60e3&&G.dist(incPos.lat,incPos.lon,f.lat,f.lon)<20000)return;incAt=Date.now();incPos={lat:f.lat,lon:f.lon};
     const dl=0.12,dn=0.16;try{incArea=await incidentsBox([f.lon-dn,f.lat-dl,f.lon+dn,f.lat+dl]);publish()}catch(e){}}
 
   /* =================== TRATTI SEGNATI DALL'UTENTE =================== */
@@ -231,9 +235,9 @@ const Roads = App.Roads = (()=>{
   App.on('plan',()=>{if(!Plan.st.routes.length&&!Nav.active){routeLayer={nodes:[],segs:[],inc:[],fun:[],curves:[]};publish()}});
   App.on('navStart',()=>{const r=Nav.route;if(!r)return;r._an=r._an||analyze(r.coords);routeLayer.fun=[];routeLayer.curves=r._an.curves.filter(c=>c.danger);
     routeHazards(r).then(hz=>{r._hzv=hz;routeLayer.nodes=hz.nodes;publish()}).catch(()=>{});
-    if(S.tomtomKey){const upd=()=>{if(Nav.route!==r)return;routeIncidents(r).then(inc=>{if(inc){r._incv=inc;routeLayer.inc=inc.on;publish();App.emit('trafficDelay',inc.delay)}}).catch(()=>{})};upd();r._incT=setInterval(upd,4*60e3)}publish()});
+    if(S.tomtomKey){const upd=()=>{if(Nav.route!==r)return;routeIncidents(r).then(inc=>{if(inc){r._incv=inc;routeLayer.inc=inc.on;publish();App.emit('trafficDelay',inc.delay)}}).catch(()=>{})};upd();clearInterval(incTimer);incTimer=setInterval(upd,10*60e3)}publish()});
   App.on('navReroute',()=>{const r=Nav.route;if(!r)return;r._an=analyze(r.coords);routeLayer.curves=r._an.curves.filter(c=>c.danger);routeHazards(r).then(hz=>{r._hzv=hz;routeLayer.nodes=hz.nodes;publish()}).catch(()=>{})});
-  App.on('navEnd',()=>{routeLayer={nodes:[],segs:[],inc:[],fun:[],curves:[]};publish()});
+  App.on('navEnd',()=>{clearInterval(incTimer);routeLayer={nodes:[],segs:[],inc:[],fun:[],curves:[]};publish()});
 
   /* =================== STRADE DA GUIDARE VICINO A ME =================== */
   let funNear=null;

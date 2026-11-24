@@ -49,7 +49,7 @@ const UI = App.UI = (()=>{
         <button id="qFun"><span class="qi" style="background:linear-gradient(160deg,#A78BFA,#7C3AED)"><svg viewBox="0 0 24 24"><path d="M6 21c0-4 6-4 6-8.5S6 8 6 3M18 21c0-4-6-4-6-8.5S18 8 18 3" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></span>Strade da guidare</button>
         <button id="qRep"><span class="qi" style="background:linear-gradient(160deg,#FFB340,#FF8A00)"><svg><use href="#i-alert"/></svg></span>Segnala</button>
         <button id="qStage"><span class="qi" style="background:linear-gradient(160deg,#5E5CE6,#3634A3)"><svg><use href="#i-clock"/></svg></span>Prove a tempo</button>
-        <button id="qMark"><span class="qi" style="background:linear-gradient(160deg,#F5C542,#D4A017)"><svg viewBox="0 0 24 24"><path d="M3 19l6-8 4 5 2.5-3L21 19z" fill="#fff"/><circle cx="17" cy="7" r="2" fill="#fff"/></svg></span>${App.Roads&&App.Roads.recording?'Fine tratto':'Tratto bello'}</button>
+        <button id="qRange"><span class="qi" style="background:linear-gradient(160deg,#5AC8FA,#0A84FF)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="3 2.2"/><circle cx="12" cy="12" r="2.6" fill="#fff"/></svg></span>Fin dove arrivo</button>
       </div>
       <div class="sec"><h3>Guida</h3></div>
       <div class="group">
@@ -70,7 +70,7 @@ const UI = App.UI = (()=>{
         r.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>openPlace(recents[+b.dataset.rec]));
         const rc=$('#hRecClear');if(rc)rc.onclick=()=>{recents=[];Store.set('recents',recents);render()};
         $('#hDrive').onclick=()=>{App.toggleDrive();render()};$('#hTutor').onclick=()=>{Guard.act?Guard.end('manuale'):Guard.startManual();render()};
-        $('#qWx').onclick=()=>show('weather');$('#qLive').onclick=()=>show('live');$('#qConv').onclick=()=>show('convoy');$('#qMus').onclick=()=>show('music');$('#qFun').onclick=()=>show('funroads');$('#qRep').onclick=()=>show('report');$('#qStage').onclick=()=>show('stages');$('#qMark').onclick=()=>{App.Roads.markToggle();render()};
+        $('#qWx').onclick=()=>show('weather');$('#qLive').onclick=()=>show('live');$('#qConv').onclick=()=>show('convoy');$('#qMus').onclick=()=>show('music');$('#qFun').onclick=()=>show('funroads');$('#qRep').onclick=()=>show('report');$('#qStage').onclick=()=>show('stages');$('#qRange').onclick=()=>show('range');
         $('#hReport').onclick=()=>show('report');const ht=$('#hTrips');if(ht)ht.onclick=()=>show('trips');$('#hCams').onclick=()=>show('cams');$('#hHist').onclick=()=>show('hist');
         $('#hPark').onclick=()=>{const pk=Store.get('park',null);if(pk)openPlace({name:'La tua auto',type:'Parcheggio',addr:'Salvato '+F.date(pk.ts),lat:pk.lat,lon:pk.lon,cat:'parking',isCar:true});else savePark()}}}};
   function savePark(){const f=App.state.fix;if(!f){App.toast('Serve la posizione per salvare il parcheggio');return}Store.set('park',{lat:f.lat,lon:f.lon,ts:Date.now()});App.toast('Parcheggio salvato');Voice.buzz(15);render()}
