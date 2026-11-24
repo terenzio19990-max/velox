@@ -1,0 +1,178 @@
+autostrada;inizio;km_inizio;fine;km_fine
+A1;Lodi Dir. Nord;24;Milano Sud Dir. Nord;12,05
+A1;Casale Dir. Nord;38,9;Lodi Dir. Nord;24
+A1;Piacenza Nord Dir. Nord;52,2;Casale Dir. Nord;38,9
+A1;Piacenza Sud Dir. Nord;60,885;Piacenza Nord Dir. Nord;52,2
+A1;Fiorenzuola Dir. Nord;76,58;Piacenza Sud Dir. Nord;60,885
+A1;Fidenza Dir. Nord;92,55;Fiorenzuola Dir. Nord;76,58
+A1;All. A15-A1 Nord Dir. Nord;99,1;Fidenza Dir. Nord;92,55
+A1;Campegine Dir. Nord;125,83;Parma Dir. Nord;113,28
+A1;Reggio Emilia Dir. Nord;139,2;Campegine Dir. Nord;125,83
+A1;All. A22-A1 Nord Dir. Nord;153,4;Reggio Emilia Dir. Nord;139,2
+A1;Modena Sud Dir. Nord;172,03;Modena Nord Dir. Nord;158,53
+A1;Milano Sud Dir. Sud;12,3;Lodi Dir. Sud;21,2
+A1;Lodi Dir. Sud;21,2;Casale Dir. Sud;36,1
+A1;Casale Dir. Sud;36,1;Piacenza Nord Dir. Sud;48,1
+A1;Piacenza Nord Dir. Sud;48,1;Piacenza Sud Dir. Sud;54,5
+A1;All. A21-A1 Sud Dir. Sud;60,85;Fiorenzuola Dir. Sud;71,35
+A1;Fiorenzuola Dir. Sud;71,35;Fidenza Dir. Sud;89,15
+A1;Fidenza Dir. Sud;89,15;All. A15-A1 Nord Dir. Sud;99,45
+A1;All. A15-A1 Sud Dir. Sud;103,4;Parma Dir. Sud;109,2
+A1;Parma Dir. Sud;109,2;Campegine Dir. Sud;122,35
+A1;Campegine Dir. Sud;122,35;Reggio Emilia Dir. Sud;135,85
+A1;Modena Nord Dir. Sud;158,528;Modena Sud Dir. Sud;169,05
+A1;Modena Sud Dir. Sud;169,05;All. A14-A1 Nord Dir. Sud;186,83
+A1;Santa Lucia Nord Dir. Sud;264,94;Santa Lucia Sud Dir. Sud;272,698
+A1;Valdichiana Dir. Nord;386,45;Monte San Savino Dir. Nord;373,65
+A1;Chiusi Dir. Nord;411,6;Valdichiana Dir. Nord;386,45
+A1;Orvieto Dir. Nord;467;Fabro Dir. Nord;429,1
+A1;Magliano Dir. Nord;503,11;Orte Dir. Nord;493,9
+A1;Ponzano Romano Dir. Nord;517,55;Magliano Dir. Nord;503,11
+A1;All. Diramazione Roma Nord-A1 Dir. Nord;529,14;Ponzano Romano Dir. Nord;517,55
+A1;Monte San Savino Dir. Sud;369,45;Valdichiana Dir. Sud;383,95
+A1;Valdichiana Dir. Sud;383,95;Chiusi Dir. Sud;408,95
+A1;Orte Dir. Sud;489,9;Ponzano Romano Dir. Sud;512,9
+A1;Ponzano Romano Dir. Sud;512,9;All. Diramazione Roma Nord-A1 Dir. Sud;527,6
+A1;All. Diramazione Roma Sud-A1 Dir. Nord;574,6;All. A24-A1 Dir. Nord;564,05
+A1;Valmontone Dir. Nord;589,2;All. Diramazione Roma Sud-A1 Dir. Nord;579,85
+A1;Colleferro Dir. Nord;596;Valmontone Dir. Nord;589,2
+A1;Anagni Dir. Nord;605,8;Colleferro Dir. Nord;596
+A1;Pontecorvo Dir. Nord;661,75;Ceprano Dir. Nord;644,85
+A1;Cassino Dir. Nord;671,2;Pontecorvo Dir. Nord;661,75
+A1;San Vittore Dir. Nord;680,5;Cassino Dir. Nord;671,2
+A1;Caianello Dir. Nord;702,6;San Vittore Dir. Nord;680,5
+A1;Santa Maria Capua Vetere Dir. Nord;731,4;Capua Dir. Nord;721,5
+A1;Caserta Nord Dir. Nord;736,68;Santa Maria Capua Vetere Dir. Nord;731,4
+A1;All. A24-A1 Dir. Sud;564;All. Diramazione Roma Sud-A1 Dir. Sud;574
+A1;All. Diramazione Roma Sud-A1 Dir. Sud;579,75;Colleferro Dir. Sud;589,17
+A1;Colleferro Dir. Sud;589,17;Anagni Dir. Sud;602,9
+A1;Anagni Dir. Sud;602,9;Ferentino Dir. Sud;616,5
+A1;Frosinone Dir. Sud;622,5;Ceprano Dir. Sud;640,8
+A1;Pontecorvo Dir. Sud;656,7;Cassino Dir. Sud;668,57
+A1;Cassino Dir. Sud;668,57;San Vittore Dir. Sud;675,9
+A1;San Vittore Dir. Sud;675,9;Caianello Dir. Sud;696,7
+A1;Capua Dir. Sud;717,45;Santa Maria Capua Vetere Dir. Sud;727,95
+A1;Santa Maria Capua Vetere Dir. Sud;727,95;Caserta Nord Dir. Sud;732,89
+A1 Diramazione Roma Nord;Castelnuovo di Porto Dir. Sud;7,8;Settebagni Dir. Sud;17,9
+A1 Diramazione Roma Sud;San Cesareo Dir. Nord;3,7;Monte Porzio Dir. Nord;9,2
+A1 Diramazione Roma Sud;Monte Porzio Dir. Sud;11,88;San Cesareo Dir. Sud;3,72
+A1 Variante di Valico;Firenzuola Dir. Nord;27,62;Badia Dir. Nord;18,89
+A1 Variante di Valico;Badia Dir. Sud;19;Firenzuola Dir. Sud;27,65
+A4;Trezzo Dir. Est;154,85;Dalmine Dir. Est;166,633
+A4;Dalmine Dir. Est;166,633;Bergamo Dir. Est;171,3
+A4;Bergamo Dir. Est;171,3;Seriate Dir. Est;178,45
+A4;Seriate Dir. Est;178,45;Grumello Dir. Est;187,01
+A4;Grumello Dir. Est;187,01;Ponte Oglio Dir. Est;190,45
+A4;Ponte Oglio Dir. Est;190,45;Palazzolo Dir. Est;192,4
+A4;Palazzolo Dir. Est;192,4;Rovato Dir. Est;200,69
+A4;Rovato Dir. Est;200,69;Ospitaletto Dir. Est;205,55
+A4;Capriate Dir. Ovest;161,49;Cavenago Dir. Ovest;151,5
+A4;Dalmine Dir. Ovest;168,9;Capriate Dir. Ovest;161,49
+A4;Seriate Dir. Ovest;180;Bergamo Dir. Ovest;174,3
+A4;Grumello Dir. Ovest;189;Seriate Dir. Ovest;180
+A4;Ponte Oglio Dir. Ovest;192,4;Grumello Dir. Ovest;189
+A4;Palazzolo Dir. Ovest;193,9;Ponte Oglio Dir. Ovest;192,4
+A4;Rovato Dir. Ovest;202,3;Palazzolo Dir. Ovest;193,9
+A4;Ospitaletto Dir. Ovest;206,97;Rovato Dir. Ovest;202,3
+A7;Ronco Scrivia Dir. Nord;109,33;Isola del Cantone Dir. Nord;104,8
+A7;Busalla Dir. Nord;114,14;Ronco Scrivia Dir. Nord;109,33
+A7;Busalla Dir. Sud;112,78;Bolzaneto Dir. Sud;125,07
+A8;Castellanza Dir. Nord;17;Busto Arsizio Dir. Nord;20,8
+A8;Castellanza Dir. Sud;20,4;Origgio Ovest Dir. Sud;12,15
+A8;Busto Arsizio Dir. Sud;25,6;Castellanza Dir. Sud;20,4
+A9;Turate Dir. Nord;18,1;All. A9-A36 Dir. Nord;20,15
+A9;Lomazzo Sud Dir. Nord;22,95;Lomazzo Nord Dir. Nord;24,85
+A9;Lomazzo Nord Dir. Nord;24,85;Fino Mornasco Dir. Nord;28,6
+A9;Turate Dir. Sud;20,45;Saronno Dir. Sud;17,65
+A9;Lomazzo Nord Dir. Sud;26,7;Lomazzo Sud Dir. Sud;23,95
+A10;Celle Ligure Dir. Ovest;31,59;Albisola Dir. Ovest;36,05
+A10;Albisola Dir. Est;38,7;Celle Ligure Dir. Est;33,89
+A13;Arcoveggio Dir. Nord;1,47;Bologna Interporto Dir. Nord;6,5
+A13;Bologna Interporto Dir. Nord;6,5;Altedo Dir. Nord;19,8
+A13;Altedo Dir. Nord;19,8;Ferrara Sud Dir. Nord;32,3
+A13;Ferrara Sud Dir. Nord;32,3;Ferrara Nord Dir. Nord;40,3
+A13;Ferrara Nord Dir. Nord;40,3;Occhiobello Dir. Nord;45,6
+A13;Occhiobello Dir. Nord;45,6;Rovigo Sud Dir. Nord;61,7
+A13;Rovigo Sud Dir. Nord;61,7;Rovigo Dir. Nord;68,9
+A13;Rovigo Dir. Nord;68,9;Boara Dir. Nord;74,1
+A13;Boara Dir. Nord;74,1;Monselice Dir. Nord;86,4
+A13;Monselice Dir. Nord;86,4;Terme Euganee Dir. Nord;92,8
+A13;Terme Euganee Dir. Nord;92,8;Padova Sud Dir. Nord;99,4
+A13;Bologna Interporto Dir. Sud;9,4;Arcoveggio Dir. Sud;1,4
+A13;Altedo Dir. Sud;21,1;Bologna Interporto Dir. Sud;9,4
+A13;Ferrara Sud Dir. Sud;34,6;Altedo Dir. Sud;21,1
+A13;Ferrara Nord Dir. Sud;42,4;Ferrara Sud Dir. Sud;34,6
+A13;Rovigo Sud Dir. Sud;64,38;Occhiobello Dir. Sud;50,3
+A13;Rovigo Dir. Sud;71;Rovigo Sud Dir. Sud;64,38
+A13;Terme Euganee Dir. Sud;96,2;Monselice Dir. Sud;89,1
+A13;Padova Zona Industriale Dir. Sud;114,2;Padova Sud Dir. Sud;101,9
+A11;Prato Est Dir. Ovest;7,25;Prato Ovest Dir. Ovest;15,9
+A11;Prato Ovest Dir. Ovest;15,9;Pistoia Dir. Ovest;26,1
+A11;Prato Ovest Dir. Est;18,3;Prato Est Dir. Est;9,55
+A11;Pistoia Dir. Est;28,45;Prato Ovest Dir. Est;18,3
+A11;Montecatini Dir. Est;40,5;Pistoia Dir. Est;28,45
+A14;All. Ramo Casalecchio Dir. Nord;8,4;Borgo Panigale Dir. Nord;5,5
+A14;Castel San Pietro Dir. Nord;39,4;San Lazzaro Dir. Nord;23
+A14;Imola Dir. Nord;51,3;Castel San Pietro Dir. Nord;39,4
+A14;All. Ravenna Nord Dir. Nord;55,3;Imola Dir. Nord;51,3
+A14;Faenza Dir. Nord;65,4;All. Ravenna Sud Dir. Nord;58,9
+A14;Forlì Dir. Nord;82,6;Faenza Dir. Nord;65,4
+A14;Cesena Nord Dir. Nord;94,6;Forlì Dir. Nord;82,6
+A14;Valle del Rubicone Dir. Nord;112,25;Cesena Dir. Nord;101
+A14;Bologna Fiera Dir. Sud;16,4;All. San Lazzaro Dir. Sud;21,8
+A14;Castel San Pietro Dir. Sud;35,9;Imola Dir. Sud;49
+A14;Faenza Dir. Sud;63;Forlì Dir. Sud;80,3
+A14;Cesena Dir. Sud;98,2;Valle del Rubicone Dir. Sud;109,12
+A14;Valle del Rubicone Dir. Sud;109,12;Rimini Nord Dir. Sud;115,8
+A14;Rimini Sud Dir. Sud;126,15;Riccione Dir. Sud;134,5
+A14;Riccione Dir. Sud;134,5;Cattolica Dir. Sud;142,7
+A14;Riccione Dir. Nord;137,55;Rimini Sud Dir. Nord;128,5
+A14;Cattolica Dir. Nord;145,95;Riccione Dir. Nord;137,55
+A14;Pesaro Dir. Nord;157,7;Cattolica Dir. Nord;145,95
+A14;Giulianova Dir. Nord;336;Val Vibrata Dir. Nord;329,5
+A14;Pescara Ovest Dir. Nord;383,7;All. A14-A25 Dir. Nord;378,3
+A14;Ortona Dir. Nord;405,45;Pescara Sud Dir. Nord;394,55
+A14;San Severo Dir. Nord;529,55;Poggio Imperiale Dir. Nord;508,03
+A14;Foggia Dir. Nord;555,7;San Severo Dir. Nord;529,55
+A14;Foggia Zona Industriale Dir. Nord;566,978;Foggia Dir. Nord;555,7
+A14;Cerignola Est Dir. Nord;590,8;Foggia Zona Industriale Dir. Nord;566,978
+A14;All. A16-A14 Nord Dir. Nord;599,51;Cerignola Est Dir. Nord;590,8
+A14;Pescara Sud Dir. Sud;390,07;Ortona Dir. Sud;402,3
+A14;Val di Sangro Dir. Sud;417,15;Vasto Nord Dir. Sud;434,43
+A14;Poggio Imperiale Dir. Sud;502,78;San Severo Dir. Sud;525,785
+A14;San Severo Dir. Sud;525,785;Foggia Dir. Sud;551,69
+A14;Foggia Dir. Sud;551,69;Foggia Zona Industriale Dir. Sud;562,65
+A14;Foggia Zona Industriale Dir. Sud;562,65;Cerignola Est Dir. Sud;580,225
+A14;Cerignola Est Dir. Sud;580,225;All. A16-A14 Nord Dir. Sud;599,5
+A14;All. A16-A14 Sud Dir. Sud;603,79;Canosa Dir. Sud;608,79
+A14;Canosa Dir. Sud;608,79;Andria-Barletta Dir. Sud;619,4
+A14;Canosa Dir. Nord;611,1;All. A16-A14 Sud Dir. Nord;605,05
+A14;Andria-Barletta Dir. Nord;628,8;Canosa Dir. Nord;611,1
+A14;Bitonto Dir. Nord;663,97;Molfetta Dir. Nord;654
+A14;Bari Nord Dir. Nord;671;Bitonto Dir. Nord;663,97
+A14;Bari Sud Dir. Nord;681,135;Bari Nord Dir. Nord;671
+A14;Andria-Barletta Dir. Sud;619,4;Trani Dir. Sud;637,05
+A14;Trani Dir. Sud;637,05;Molfetta Dir. Sud;642,5
+A14;Molfetta Dir. Sud;642,5;Bitonto Dir. Sud;663,965
+A14;Bitonto Dir. Sud;663,965;Bari Nord Dir. Sud;668,2
+A16;Monteforte Dir. Est;36,05;Avellino Ovest Dir. Est;40
+A16;Monteforte Dir. Ovest;36,05;Baiano Dir. Ovest;27,65
+A23;Udine Nord Dir. Nord;25,2;Gemona Dir. Nord;43
+A23;Gemona Dir. Nord;43;Carnia Dir. Nord;54,37
+A23;Gemona Dir. Sud;47,2;Udine Nord Dir. Sud;30,65
+A26;Ovada Dir. Nord;28,95;Predosa Dir. Nord;44,49
+A26;Predosa Dir. Sud;43;Ovada Dir. Sud;31,75
+A27;Treviso Sud Dir. Nord;10,1;Treviso Nord Dir. Nord;21,5
+A27;Treviso Nord Dir. Nord;21,5;All. Superstrada Pedemontana Veneta Dir. Nord;24
+A27;Vittorio Veneto Nord Dir. Nord;58,2;Fadalto Dir. Nord;62,3
+A27;Treviso Sud Dir. Sud;16,025;All. A4-A27 Dir. Sud;10,2
+A27;Treviso Nord Dir. Sud;24,45;Treviso Sud Dir. Sud;16,025
+A30;Nola Dir. Nord;19,28;All. A30-A1 Dir. Nord;1,3
+A30;Palma Campania Dir. Nord;32,14;All. A30-A16 Dir. Nord;22,1
+A30;Sarno Dir. Nord;38,33;Palma Campania Dir. Nord;32,14
+A30;Nocera-Pagani Dir. Nord;40,94;Sarno Dir. Nord;38,33
+A30;Salerno-San Severino Dir. Nord;49,47;Nocera-Pagani Dir. Nord;40,94
+A30;All. A30-A1 Dir. Sud;1,85;Nola Dir. Sud;17,2
+A30;All. A30-A16 Dir. Sud;22,16;Palma Campania Dir. Sud;29
+A30;Palma Campania Dir. Sud;29;Sarno Dir. Sud;34,365
+A30;Sarno Dir. Sud;34,365;Nocera-Pagani Dir. Sud;38,4
