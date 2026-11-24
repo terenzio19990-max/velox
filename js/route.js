@@ -1,9 +1,9 @@
 /* Sentinella — pianificazione: tappe, alternative, costi (carburante, pedaggi, CO2), ottimizzazione dell'ordine. */
 'use strict';
 const Plan = App.Plan = (()=>{
-  const st={stops:[],routes:[],sel:0,loading:false,err:null,ver:0};
+  const st={stops:[],routes:[],sel:0,loading:false,err:null,ver:0,depart:null};
   const here=()=>({name:'La mia posizione',gps:true});
-  function reset(dest){st.stops=[here()];if(dest)st.stops.push(dest);st.routes=[];st.sel=0;st.err=null;st.ver++}
+  function reset(dest){st.depart=null;st.stops=[here()];if(dest)st.stops.push(dest);st.routes=[];st.sel=0;st.err=null;st.ver++}
   function resolve(s){if(s.gps){const f=App.state.fix;return f?{lat:f.lat,lon:f.lon,heading:App.state.hd,name:s.name}:null}return s}
 
   /* ---------- costo ---------- */
@@ -54,7 +54,7 @@ const Plan = App.Plan = (()=>{
     const pts=st.stops.map(resolve);if(pts.some(p=>!p))return;App.toast('Ottimizzo l\'ordine delle tappe…');
     try{const order=await API.optimize(pts);if(order&&order.length===st.stops.length){const old=st.stops.slice();st.stops=order.map(i=>old[i]);st.ver++;App.toast('Tappe riordinate per il percorso più breve');compute()}}
     catch(e){App.toast('Ottimizzazione non disponibile ora')}}
-  function addStop(p,at){const s={name:p.name,lat:p.lat,lon:p.lon,addr:p.addr||''};if(at==null)st.stops.push(s);else st.stops.splice(at,0,s);st.ver++}
+  function addStop(p,at){const s={name:p.name,lat:p.lat,lon:p.lon,addr:p.addr||'',stay:p.stay||0};if(at==null)st.stops.push(s);else st.stops.splice(at,0,s);st.ver++}
   function removeStop(i){st.stops.splice(i,1);if(!st.stops.length)st.stops=[here()];st.ver++}
   function move(i,d){const j=i+d;if(j<0||j>=st.stops.length)return;[st.stops[i],st.stops[j]]=[st.stops[j],st.stops[i]];st.ver++}
   return {st,reset,compute,select,optimize,addStop,removeStop,move,cost,clearMap,draw,resolve,fitRoutes,get route(){return st.routes[st.sel]}};

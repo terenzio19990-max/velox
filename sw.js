@@ -1,5 +1,5 @@
 /* Sentinella — funzionamento offline: app e dati in cache, mappe salvate mentre le usi. */
-const V='snt-v2.0.0';
+const V='snt-v2.1.0';
 const SHELL=['./','index.html','manifest.webmanifest','css/app.css','js/lib/maplibre-gl.js','js/lib/maplibre-gl.css','js/osmproc.js','js/core.js','js/api.js','js/sheet.js','js/mapview.js','js/guard.js','js/route.js','js/nav.js','js/ui.js','js/app.js','data/italia.js','data/tutor.js','img/icon-180.png','img/icon-192.png','img/icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(V).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(ks=>Promise.all(ks.filter(k=>k!==V&&k!=='snt-tiles').map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});

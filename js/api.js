@@ -17,7 +17,7 @@ const API = App.API = (()=>{
       try{const r=await tfetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'}},ms);
         if(r.status===429||r.status>=500){err=new Error('HTTP '+r.status);continue}
         const j=await r.json();ovIdx=(ovIdx+k)%OVP.length;return j}catch(e){err=e}}
-    ovBusyUntil=Date.now()+20000;throw err}
+    ovBusyUntil=Date.now()+60000;throw err}
 
   /* ---- Photon ---- */
   const placeFromPhoton=f=>{const p=f.properties,c=f.geometry.coordinates;
@@ -38,13 +38,31 @@ const API = App.API = (()=>{
   const toPlace=e=>{const t=e.tags||{};const lat=e.lat??(e.center&&e.center.lat),lon=e.lon??(e.center&&e.center.lon);
     const cat=App.catOf(t);const street=[t['addr:street'],t['addr:housenumber']].filter(Boolean).join(' ');
     return {id:e.type[0].toUpperCase()+e.id,osm:{t:e.type,id:e.id},name:t.name||t.brand||t.operator||(cat?cat.l.replace(/i$/,'o'):'Luogo'),type:App.TYPE_IT[t.amenity||t.shop||t.tourism||t.highway]||(cat?cat.l:''),addr:[street,t['addr:city']].filter(Boolean).join(', '),lat,lon,tags:t,cat:cat&&cat.k}};
+  /* più fonti in parallelo: vince la prima che risponde con dei risultati */
+  const firstOk=ps=>new Promise((res,rej)=>{let left=ps.length,errs=[];ps.forEach(p=>p.then(v=>{if(v&&v.length)res(v);else if(--left===0)rej(errs)},e=>{errs.push(e);if(--left===0)rej(errs)}))});
+  const dedupe=list=>{const out=[];for(const p of list){if(p.lat==null)continue;if(!out.some(o=>o.id===p.id||(G.dist(o.lat,o.lon,p.lat,p.lon)<25&&o.name===p.name)))out.push(p)}return out};
+  async function photonCat(cat,lat,lon,radiusKm,limit=40){
+    const calls=(cat.ph||[]).map(tag=>tfetch(`${PHOTON}/reverse?lat=${lat.toFixed(5)}&lon=${lon.toFixed(5)}&radius=${radiusKm}&limit=${limit}&osm_tag=${encodeURIComponent(tag)}`,{},9000).then(r=>r.ok?r.json():{features:[]}).then(j=>(j.features||[]).map(f=>{const p=placeFromPhoton(f);p.cat=cat.k;if(!p.name||p.name==='Luogo')p.name=cat.l.replace(/i$/,'o');return p})).catch(()=>[]));
+    return dedupe((await Promise.all(calls)).flat())}
+  async function nominatimCat(cat,lat,lon,km){const dl=km/111,dn=km/(111*Math.cos(G.rad(lat)));
+    const u=`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(cat.nm)}&format=jsonv2&limit=40&extratags=1&addressdetails=1&bounded=1&viewbox=${(lon-dn).toFixed(4)},${(lat+dl).toFixed(4)},${(lon+dn).toFixed(4)},${(lat-dl).toFixed(4)}`;
+    const r=await tfetch(u,{headers:{'Accept-Language':'it'}},10000);const j=await r.json();
+    return (j||[]).map(x=>{const t=Object.assign({[x.category]:x.type},x.extratags||{});const a=x.address||{};return {id:(x.osm_type||'n')[0].toUpperCase()+x.osm_id,osm:{t:x.osm_type,id:x.osm_id},name:x.name||cat.l,type:App.TYPE_IT[x.type]||cat.l,addr:[[a.road,a.house_number].filter(Boolean).join(' '),a.city||a.town||a.village].filter(Boolean).join(', '),lat:+x.lat,lon:+x.lon,tags:t,cat:cat.k}})}
+  async function overpassCat(cat,lat,lon,radius){const q=`[out:json][timeout:20];${cat.q}(around:${radius},${lat.toFixed(5)},${lon.toFixed(5)});out center tags 80;`;
+    const j=await overpass(q,14000);return j.elements.map(toPlace).filter(p=>p.lat!=null)}
   async function poisNear(cat,lat,lon,radius=4000){
-    const q=`[out:json][timeout:25];${cat.q}(around:${radius},${lat.toFixed(5)},${lon.toFixed(5)});out center tags 80;`;
-    const j=await overpass(q,30000);return j.elements.map(toPlace).filter(p=>p.lat!=null)}
+    const km=radius/1000;
+    try{return await firstOk([overpassCat(cat,lat,lon,radius),photonCat(cat,lat,lon,km)])}
+    catch(e){/* ultimo tentativo: raggio più ampio e Nominatim */}
+    const v=await firstOk([photonCat(cat,lat,lon,Math.max(10,km*3)),nominatimCat(cat,lat,lon,Math.max(5,km*2))]);return v}
   async function poisAlong(cat,pts,radius=600){
     const line=pts.map(p=>p[0].toFixed(4)+','+p[1].toFixed(4)).join(',');
-    const q=`[out:json][timeout:40];${cat.q}(around:${radius},${line});out center tags 120;`;
-    const j=await overpass(q,45000);return j.elements.map(toPlace).filter(p=>p.lat!=null)}
+    const ov=overpass(`[out:json][timeout:30];${cat.q}(around:${radius},${line});out center tags 120;`,25000).then(j=>j.elements.map(toPlace).filter(p=>p.lat!=null));
+    // Photon: punti campione lungo il percorso (max 12)
+    const P=G.prep(pts);const n=Math.min(12,Math.max(2,Math.ceil(P.len/8000)));const samples=[];for(let i=0;i<n;i++){const q=G.pointAt(P,P.len*(i+0.5)/n);samples.push(q)}
+    const rk=Math.max(1,Math.min(5,P.len/n/2000));
+    const ph=Promise.all(samples.map(q=>photonCat(cat,q.lat,q.lon,rk,20))).then(r=>dedupe(r.flat()).filter(p=>G.proj(p.lat,p.lon,P).d<Math.max(radius,800)));
+    return firstOk([ov,ph])}
 
   /* ---- Valhalla ---- */
   function costing(o){const a={use_tolls:o.avoidTolls?0:0.5,use_highways:o.avoidHighways?0:1,use_ferry:o.avoidFerries?0:0.5};if(o.avoidTolls)a.exclude_tolls=true;if(o.avoidFerries)a.exclude_ferries=true;return a}

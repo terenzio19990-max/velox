@@ -47,6 +47,7 @@ const UI = App.UI = (()=>{
         ${item({attr:'id="hReport"',color:'#007AFF',icon:'<svg><use href="#i-alert"/></svg>',t1:'Segnala',t2:'Autovelox o controllo qui',chev:true})}
         ${item({attr:'id="hPark"',color:'#5856D6',icon:'<b style="font-size:17px">P</b>',t1:park?'Torna all\'auto':'Salva il parcheggio',t2:park?`Parcheggiata ${F.date(park.ts)}`:'Ricorda dove hai lasciato l\'auto',chev:true})}
         ${item({attr:'id="hCams"',color:'#E1251B',icon:'<svg><use href="#i-camera"/></svg>',t1:'Autovelox e tutor vicini',t2:`${Guard.info.n.toLocaleString('it-IT')} autovelox e ${Guard.info.t} tutor in archivio`,chev:true})}
+        ${Store.get('trips',[]).length?item({attr:'id="hTrips"',color:'#34C759',icon:'<svg><use href="#i-route"/></svg>',t1:'I miei viaggi',t2:Store.get('trips',[]).length+' viaggi salvati',chev:true}):''}
         ${item({attr:'id="hHist"',color:'#8E8E93',icon:'<svg><use href="#i-clock"/></svg>',t1:'Storico tutor',t2:Guard.hist.length?`${Guard.hist.length} passaggi registrati`:'Nessun passaggio',chev:true})}
       </div>
       ${recents.length?`<div class="sec"><h3>Recenti</h3><button class="link" id="hRecClear">Cancella</button></div><div class="group">${recents.slice(0,8).map((p,i)=>{const pi=placeIcon(p);return item({attr:`data-rec="${i}"`,color:pi.color,icon:pi.icon,t1:esc(p.name),t2:esc([p.type,p.addr].filter(Boolean).join(' · ')),rt:esc(distTxt(p))})}).join('')}</div>`:''}
@@ -58,7 +59,7 @@ const UI = App.UI = (()=>{
         r.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>openPlace(recents[+b.dataset.rec]));
         const rc=$('#hRecClear');if(rc)rc.onclick=()=>{recents=[];Store.set('recents',recents);render()};
         $('#hDrive').onclick=()=>{App.toggleDrive();render()};$('#hTutor').onclick=()=>{Guard.act?Guard.end('manuale'):Guard.startManual();render()};
-        $('#hReport').onclick=()=>show('report');$('#hCams').onclick=()=>show('cams');$('#hHist').onclick=()=>show('hist');
+        $('#hReport').onclick=()=>show('report');const ht=$('#hTrips');if(ht)ht.onclick=()=>show('trips');$('#hCams').onclick=()=>show('cams');$('#hHist').onclick=()=>show('hist');
         $('#hPark').onclick=()=>{const pk=Store.get('park',null);if(pk)openPlace({name:'La tua auto',type:'Parcheggio',addr:'Salvato '+F.date(pk.ts),lat:pk.lat,lon:pk.lon,cat:'parking',isCar:true});else savePark()}}}};
   function savePark(){const f=App.state.fix;if(!f){App.toast('Serve la posizione per salvare il parcheggio');return}Store.set('park',{lat:f.lat,lon:f.lon,ts:Date.now()});App.toast('Parcheggio salvato');Voice.buzz(15);render()}
 
@@ -118,7 +119,7 @@ const UI = App.UI = (()=>{
           out.querySelectorAll('[data-i]').forEach(b=>b.onclick=()=>openPlace(list[+b.dataset.i],{keepPois:true}));
           let bb=[[180,90],[-180,-90]];for(const p of list.slice(0,20)){bb[0][0]=Math.min(bb[0][0],p.lon);bb[0][1]=Math.min(bb[0][1],p.lat);bb[1][0]=Math.max(bb[1][0],p.lon);bb[1][1]=Math.max(bb[1][1],p.lat)}
           if(!App.state.navigating&&!along){if(me){bb[0][0]=Math.min(bb[0][0],me.lon);bb[0][1]=Math.min(bb[0][1],me.lat);bb[1][0]=Math.max(bb[1][0],me.lon);bb[1][1]=Math.max(bb[1][1],me.lat)}MapView.setCam('free');MapView.fit(bb)}}
-        catch(e){out.innerHTML=`<div class="empty">Il servizio dei punti di interesse è sovraccarico.<br><br><button class="btn" id="rRetry">Riprova</button></div>`;$('#rRetry').onclick=()=>render()}}}};
+        catch(e){out.innerHTML=`<div class="empty">${navigator.onLine===false?'Sei offline: i punti di interesse servono la connessione.':'Nessun risultato trovato nei dintorni, oppure i servizi sono momentaneamente lenti.'}<br><br><button class="btn" id="rRetry">Riprova</button></div>`;$('#rRetry').onclick=()=>render()}}}};
   function fmtHours(h,full){if(h==='24/7')return 'Aperto 24 ore';const t=h.replace(/\bMo\b/g,'Lun').replace(/\bTu\b/g,'Mar').replace(/\bWe\b/g,'Mer').replace(/\bTh\b/g,'Gio').replace(/\bFr\b/g,'Ven').replace(/\bSa\b/g,'Sab').replace(/\bSu\b/g,'Dom').replace(/\bPH\b/g,'Festivi').replace(/\boff\b/g,'chiuso').replace(/,/g,', ');
     if(full)return t.split(/\s*;\s*/).join('\n');return t.length>30?t.split(/\s*;\s*/)[0]+'…':t}
 
@@ -164,14 +165,17 @@ const UI = App.UI = (()=>{
   App.on('longPress',async ll=>{const p={name:'Punto sulla mappa',type:'Segnaposto',addr:'',lat:ll.lat,lon:ll.lng};openPlace(p);try{const r=await API.reverse(ll.lat,ll.lng);if(r&&cur.name==='place'&&cur.arg.p===p){p.addr=[r.name!==r.addr?r.name:'',r.addr].filter(Boolean).join(', ');p.name=r.name&&r.name!=='Luogo'?r.name:'Punto sulla mappa';render()}}catch(e){}});
 
   /* ---------- PIANIFICAZIONE ---------- */
-  function openPlan(walk){selPin(null);clearPois();cur&&cur.name!=='plan'?show('plan',{walk}):render();Plan.compute()}
+  function openPlan(walk){selPin(null);clearPois();if(!cur||cur.name!=='plan')planTab='over';cur&&cur.name!=='plan'?show('plan',{walk}):render();Plan.compute()}
   App.on('plan',()=>{if(cur&&cur.name==='plan')renderPlanBody()});
-  R.plan=(a)=>({detent:'half',html:`${hdr('Indicazioni','',{backBtn:false,close:true})}
+  let planTab='over';
+  R.plan=(a)=>{if(a.tab)planTab=a.tab;return {detent:'half',html:`${hdr('Il tuo viaggio','',{backBtn:false,close:true})}
       <div class="group stops" id="plStops"></div>
       <div style="display:flex;gap:8px;margin-top:10px"><button class="btn" id="plAdd" style="flex:1"><svg><use href="#i-plus"/></svg>Aggiungi tappa</button>${Plan.st.stops.length>3?'<button class="btn" id="plOpt"><svg><use href="#i-magic"/></svg>Ottimizza</button>':''}</div>
       <div class="chips" style="margin-top:12px" id="plOpts"></div>
+      <div class="seg" style="margin:6px 0 12px"><button data-tab="over" class="${planTab==='over'?'on':''}">Panoramica</button><button data-tab="itin" class="${planTab==='itin'?'on':''}">Itinerario</button></div>
       <div id="plBody"></div>`,
-    bind(){renderStops();renderOpts();renderPlanBody();$('#plAdd').onclick=()=>show('search',{addStop:Plan.st.stops.length});const o=$('#plOpt');if(o)o.onclick=()=>Plan.optimize()}});
+    bind(){renderStops();renderOpts();renderPlanBody();$('#plAdd').onclick=()=>show('search',{addStop:Plan.st.stops.length});const o=$('#plOpt');if(o)o.onclick=()=>Plan.optimize();
+      scr.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{planTab=b.dataset.tab;scr.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x===b));renderPlanBody()})}}};
   function renderStops(){const box=$('#plStops');if(!box)return;const n=Plan.st.stops.length;
     box.innerHTML=Plan.st.stops.map((s,i)=>`<div class="stop"><span class="dot ${i===0?'':i===n-1?'end':'mid'}"></span><button class="sn" data-set="${i}" style="text-align:left">${esc(i===0&&s.gps?'La mia posizione':s.name)}</button>
       ${n>2?`<button class="mini" data-up="${i}" aria-label="Sposta su"><svg><use href="#i-up"/></svg></button>`:''}${n>2||i>0?`<button class="mini" data-del="${i}" aria-label="Rimuovi"><svg><use href="#i-x"/></svg></button>`:''}</div>`).join('');
@@ -183,37 +187,93 @@ const UI = App.UI = (()=>{
       <button class="chip ${S.avoidTolls?'on':''}" data-o="avoidTolls">Evita pedaggi</button><button class="chip ${S.avoidHighways?'on':''}" data-o="avoidHighways">Evita autostrade</button><button class="chip ${S.avoidFerries?'on':''}" data-o="avoidFerries">Evita traghetti</button>`;
     box.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{S[b.dataset.o]=!S[b.dataset.o];App.saveS();renderOpts();Plan.compute()});
     $('#oVeh').onclick=()=>pickVehicle(()=>{renderOpts();Plan.st.routes.forEach(r=>r.cost=Plan.cost(r));renderPlanBody()})}
+  // conteggio autovelox e tutor sul percorso
+  function guardOnRoute(r){if(r._guard)return r._guard;const P=G.prep(r.coords);const seen=new Set();const step=Math.max(1,Math.floor(P.g.length/300));let nCam=0;
+    for(let i=0;i<P.g.length;i+=step){for(const cm of Guard.nearCams(P.g[i][0],P.g[i][1],0)){if(seen.has(cm.id)||Guard.stat(cm)==='off'||cm.kind==='tutorpt')continue;seen.add(cm.id);const pr=G.proj(cm.lat,cm.lon,P,Math.max(0,i-step*3),i+step*3+2);if(pr.d<35)nCam++}}
+    let nTut=0;for(const t of Guard.allTuts()){if(Guard.stat(t)==='off')continue;if(t.A[0]<P.b[0]-0.02||t.A[0]>P.b[2]+0.02||t.A[1]<P.b[1]-0.02||t.A[1]>P.b[3]+0.02)continue;const a=G.proj(t.A[0],t.A[1],P),bb=G.proj(t.B[0],t.B[1],P);if(a.d<120&&bb.d<120&&bb.along>a.along)nTut++}
+    return r._guard={nCam,nTut}}
+  // punti del percorso ogni ~2 ore di guida (per le pause)
+  function breakPoints(r,every=7200){const out=[];let acc=0,next=every;for(const m of r.man){if(acc+m.time>=next&&m.len>0){const frac=(next-acc)/m.time;const P=G.prep(r.coords.slice(m.i,(m.ie||m.i)+1));const p=P.len?G.pointAt(P,P.len*frac):{lat:r.coords[m.i][0],lon:r.coords[m.i][1]};out.push({lat:p.lat,lon:p.lon,at:next});next+=every}acc+=m.time}return out}
+  function rangeKm(v){const tank=v.tank||(v.fuel==='elettrica'?55:45);const mix=(v.urb*0.2+v.ext*0.4+v.aut*0.4)||6;return tank/mix*100}
+  function departTs(){return Plan.st.depart||Date.now()}
   function renderPlanBody(){const b=$('#plBody');if(!b)return;const st=Plan.st;
     if(st.loading){b.innerHTML='<div class="spin"></div>';return}
     if(st.err){b.innerHTML=`<div class="empty">${esc(st.err)}<br><br><button class="btn" id="plRetry">Riprova</button></div>`;$('#plRetry').onclick=()=>Plan.compute();return}
     if(!st.routes.length){b.innerHTML='';return}
-    const ppl=Math.max(1,S.people||1);
-    b.innerHTML=`<div class="routes">${st.routes.map((r,i)=>`<button class="rcard ${i===st.sel?'on':''}" data-r="${i}">
-        <div class="rc-top"><span class="rc-time">${F.dur(r.time)}</span><span class="rc-dist">${F.km(r.dist)}</span><span class="rc-cost">${F.eur(r.cost.total)}</span></div>
-        <div class="rc-via">${r.via.length?'via '+esc(r.via.join(', ')):''} · arrivo ${F.clock(Date.now()+r.time*1000)}</div>
-        <div class="rc-mid">${r.tags.map(t=>`<span class="tag ${t[1]}">${esc(t[0])}</span>`).join('')}</div>
-      </button>`).join('')}</div>
-      <div style="display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:12px"><button class="btn green big" id="plGo">Vai</button><button class="btn big" id="plSim" style="width:auto;padding:0 18px" aria-label="Simula">Simula</button></div>
-      <div class="sec"><h3>Costo del viaggio</h3><button class="link" id="plVeh">${esc(App.vehicle().name)}</button></div>
-      <div class="group" id="plCost"></div>
+    if(planTab==='itin')renderItin(b);else renderOver(b)}
+  function renderOver(b){const st=Plan.st;const r=Plan.route,c=r.cost,ppl=Math.max(1,S.people||1),v=App.vehicle();const g=guardOnRoute(r);
+    const stopsMin=st.stops.slice(1,-1).reduce((a,s)=>a+(s.stay||0),0);const total=r.time+stopsMin*60;const arr=departTs()+total*1000;
+    const drives=r.time/3600;const nBreak=Math.floor(drives/2);const range=rangeKm(v);const needFuel=r.dist/1000>range*0.85;
+    const tips=[];
+    if(nBreak>0&&!st.stops.slice(1,-1).length)tips.push(['#FF9500','<svg><use href="#i-clock"/></svg>',`Ti consiglio ${nBreak} ${nBreak===1?'pausa':'pause'}`,'Una sosta ogni 2 ore di guida. Le trovi in «Itinerario».']);
+    if(needFuel)tips.push(['#FF9500',App.catIcon(catById('fuel'),18),'Serve un rifornimento',`Con un pieno fai circa ${Math.round(range)} km: il viaggio è di ${F.km(r.dist)}.`]);
+    if(c.tollKm)tips.push(['#5856D6','<svg><use href="#i-euro"/></svg>',`${F.km(c.tollKm*1000)} di autostrada a pagamento`,`Circa ${F.eur(c.toll)} di pedaggio. Senza pedaggi: tocca «Evita pedaggi».`]);
+    if(g.nTut)tips.push(['#FF9500','<b style="font-size:14px">T</b>',`${g.nTut} ${g.nTut===1?'tratta':'tratte'} con tutor`,'Ti mostro la media in tempo reale e quanto puoi andare per restare in regola.']);
+    const arrH=new Date(arr).getHours();if(arrH>=22||arrH<6)tips.push(['#1C3F94','<svg><use href="#i-alert"/></svg>','Arrivo di notte','Dalle 22 alle 7 le multe per velocità aumentano di un terzo.']);
+    const tile=(l,v2,sub)=>`<div class="tile"><span>${l}</span><b>${v2}</b>${sub?`<small>${sub}</small>`:''}</div>`;
+    b.innerHTML=`<div class="routes">${st.routes.map((rr,i)=>`<button class="rcard ${i===st.sel?'on':''}" data-r="${i}">
+        <div class="rc-top"><span class="rc-time">${F.dur(rr.time)}</span><span class="rc-dist">${F.km(rr.dist)}</span><span class="rc-cost">${F.eur(rr.cost.total)}</span></div>
+        <div class="rc-via">${rr.via.length?'via '+esc(rr.via.join(', ')):''}</div>
+        <div class="rc-mid">${rr.tags.map(t=>`<span class="tag ${t[1]}">${esc(t[0])}</span>`).join('')}</div></button>`).join('')}</div>
+      <div class="sec"><h3>Il viaggio in breve</h3></div>
+      <div class="tiles">${tile('Partenza',st.depart?F.clock(st.depart):'Adesso')}${tile('Arrivo',F.clock(arr),stopsMin?`con ${stopsMin} min di soste`:'')}
+        ${tile('Guida',F.dur(r.time),F.km(r.dist))}${tile('Costo totale',F.eur(c.total),ppl>1?F.eur(c.per)+' a testa':'')}
+        ${tile(esc(c.fuelLabel),F.eur(c.fuel),`${F.n(c.qty,1)} ${c.unit}`)}${tile('Pedaggi',c.tollKm?F.eur(c.toll):'Nessuno',c.tollKm?F.km(c.tollKm*1000):'')}
+        ${tile('Autovelox',g.nCam,'sul percorso')}${tile('Tutor',g.nTut,'tratte')}${tile('Autostrada',F.km(c.hwKm*1000),Math.round(c.hwKm*1000/r.dist*100)+'% del viaggio')}${tile('CO₂',F.n(c.co2,1)+' kg','stimata')}</div>
+      ${tips.length?`<div class="sec"><h3>Consigli</h3></div><div class="group">${tips.map(t=>`<div class="item" style="align-items:flex-start"><span class="ic" style="background:${t[0]}">${t[1]}</span><span class="tx"><span class="t1" style="display:block;white-space:normal;font-weight:600">${t[2]}</span><span class="t2" style="display:block;white-space:normal">${t[3]}</span></span></div>`).join('')}</div>`:''}
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px"><button class="btn big" id="plItin">Pianifica il viaggio</button><button class="btn green big" id="plGo">Vai</button></div>
+      <button class="btn wide" id="plSim" style="margin-top:8px">Simula il percorso</button>
       <div class="sec"><h3>Lungo il percorso</h3></div>
-      <div class="chips">${['fuel','charge','services','food','cafe','parking'].map(k=>{const c=catById(k);return `<button class="chip" data-along="${k}"><span style="color:${c.c};display:flex">${App.catIcon(c,16,c.c)}</span>${esc(c.l)}</button>`}).join('')}</div>
-      <div class="sec"><h3>Sul percorso</h3></div><div class="group" id="plGuard"></div>
-      <p class="note">Tempi senza traffico in tempo reale. Pedaggi stimati con la tariffa media di ${F.n(App.TOLL[App.vehicle().cls]*100,1)} € ogni 100 km (classe ${App.vehicle().cls}): l'importo reale può variare del 10–15%.</p>`;
-    b.querySelectorAll('[data-r]').forEach(x=>x.onclick=()=>{Plan.select(+x.dataset.r)});
-    $('#plGo').onclick=startNav;$('#plSim').onclick=()=>{App.state.simReady=true;const r=Plan.route;startNav();App.simulate(r)};
-    $('#plVeh').onclick=()=>pickVehicle(()=>{st.routes.forEach(r=>r.cost=Plan.cost(r));renderPlanBody()});
-    b.querySelectorAll('[data-along]').forEach(x=>x.onclick=()=>show('results',{cat:x.dataset.along,along:true}));
-    const r=Plan.route,c=r.cost;
-    $('#plCost').innerHTML=`<div class="kv"><span>${esc(c.fuelLabel)} · ${F.n(c.qty,1)} ${c.unit} a ${F.n(c.price,3)} €</span><b>${F.eur(c.fuel)}</b></div>
-      <div class="kv"><span>Pedaggi${c.tollKm?' · '+F.km(c.tollKm*1000)+' a pagamento':''}</span><b>${c.tollKm?F.eur(c.toll):'Nessuno'}</b></div>
-      <div class="kv"><span><b style="color:var(--label);font-weight:600">Totale</b>${ppl>1?` · ${ppl} persone`:''}</span><b style="font-weight:700">${F.eur(c.total)}${ppl>1?` <span style="color:var(--label2);font-weight:400">(${F.eur(c.per)} a testa)</span>`:''}</b></div>
-      <div class="kv"><span>CO₂ stimata</span><b>${F.n(c.co2,1)} kg</b></div>`;
-    // autovelox e tutor sul percorso
-    const P=G.prep(r.coords);const cams=new Set();const step=Math.max(1,Math.floor(P.g.length/300));let nCam=0;
-    for(let i=0;i<P.g.length;i+=step){for(const cm of Guard.nearCams(P.g[i][0],P.g[i][1],0)){if(cams.has(cm.id)||Guard.stat(cm)==='off'||cm.kind==='tutorpt')continue;cams.add(cm.id);const pr=G.proj(cm.lat,cm.lon,P,Math.max(0,i-step*3),i+step*3+2);if(pr.d<35)nCam++}}
-    let nTut=0;for(const t of Guard.allTuts()){if(Guard.stat(t)==='off')continue;const a=G.proj(t.A[0],t.A[1],P),bb=G.proj(t.B[0],t.B[1],P);if(a.d<120&&bb.d<120&&bb.along>a.along)nTut++}
-    $('#plGuard').innerHTML=item({color:'#E1251B',icon:'<svg><use href="#i-camera"/></svg>',t1:`${nCam} autovelox`,t2:'Con avviso vocale in anticipo'})+item({color:'#FF9500',icon:'<b style="font-size:15px">T</b>',t1:`${nTut} tratte tutor`,t2:'Con velocità media in tempo reale'})}
+      <div class="chips">${['fuel','charge','services','food','cafe','parking','hotel'].map(k=>{const cc=catById(k);return `<button class="chip" data-along="${k}"><span style="color:${cc.c};display:flex">${App.catIcon(cc,16,cc.c)}</span>${esc(cc.l)}</button>`}).join('')}</div>
+      <p class="note">Tempi senza traffico in tempo reale. Pedaggi stimati con la tariffa media di ${F.n(App.TOLL[v.cls]*100,1)} € ogni 100 km (classe ${v.cls}): l'importo reale può variare del 10–15%.</p>`;
+    bindCommon(b);$('#plItin').onclick=()=>{planTab='itin';scr.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x.dataset.tab==='itin'));renderPlanBody();scroller.scrollTop=0}}
+  function bindCommon(b){b.querySelectorAll('[data-r]').forEach(x=>x.onclick=()=>{Plan.select(+x.dataset.r)});
+    const go=$('#plGo');if(go)go.onclick=startNav;const sim=$('#plSim');if(sim)sim.onclick=()=>{App.state.simReady=true;const r=Plan.route;startNav();App.simulate(r)};
+    b.querySelectorAll('[data-along]').forEach(x=>x.onclick=()=>show('results',{cat:x.dataset.along,along:true}))}
+  function renderItin(b){const st=Plan.st;const r=Plan.route;const v=App.vehicle();const n=st.stops.length;
+    // tempi e costi per tratto
+    const legs=r.legs.map((L,i)=>{const ms=r.man.filter(m=>m.leg===i);const sub={man:ms,time:ms.reduce((a,m)=>a+m.time,0)};const c=Plan.cost(sub,v);return {dist:ms.reduce((a,m)=>a+m.len,0),time:sub.time,cost:c}});
+    let t=departTs();const rows=[];
+    st.stops.forEach((s,i)=>{if(i>0){const L=legs[i-1]||{dist:0,time:0,cost:{total:0,toll:0,tollKm:0}};
+        rows.push(`<div class="tl-leg"><span class="tl-line"></span><span>${F.dur(L.time)} · ${F.km(L.dist)} · ${F.eur(L.cost.total)}${L.cost.tollKm?` <span class="tag orange">pedaggio ${F.eur(L.cost.toll)}</span>`:''}</span></div>`);t+=L.time*1000}
+      const last=i===n-1,first=i===0;const name=first&&s.gps?'La mia posizione':s.name;const arr=t;if(!first&&!last)t+=(s.stay||0)*60000;
+      rows.push(`<div class="tl-stop"><span class="tl-dot ${first?'start':last?'end':''}">${first||last?'':i}</span><div class="tl-tx"><b>${esc(name)}</b>
+        <span>${first?'Partenza alle '+F.clock(arr):last?'Arrivo alle '+F.clock(arr):`Arrivo ${F.clock(arr)} · riparti ${F.clock(t)}`}</span>
+        ${!first&&!last?`<div class="tl-stay"><button class="mini" data-stay="${i}" data-d="-5" aria-label="Meno">−</button><span>Sosta ${s.stay||0} min</span><button class="mini" data-stay="${i}" data-d="5" aria-label="Più">+</button></div>`:''}</div></div>`)});
+    const stopsMin=st.stops.slice(1,-1).reduce((a,s)=>a+(s.stay||0),0);
+    const dep=new Date(departTs());const local=new Date(dep.getTime()-dep.getTimezoneOffset()*60000).toISOString().slice(0,16);
+    b.innerHTML=`<div class="group"><div class="field"><label>Partenza</label><div class="seg" style="width:auto"><button data-dep="now" class="${st.depart?'':'on'}" style="padding:0 10px;font-size:14px">Adesso</button><button data-dep="set" class="${st.depart?'on':''}" style="padding:0 10px;font-size:14px">Programma</button></div></div>
+        ${st.depart?`<div class="field"><label>Data e ora</label><input type="datetime-local" id="plDep" value="${local}" style="border:0;background:none;color:var(--accent);font-size:16px"></div>`:''}</div>
+      <div class="timeline">${rows.join('')}</div>
+      <div class="group" style="margin-top:12px"><div class="kv"><span>Guida</span><b>${F.dur(r.time)} · ${F.km(r.dist)}</b></div><div class="kv"><span>Soste</span><b>${stopsMin?stopsMin+' min':'Nessuna'}</b></div><div class="kv"><span>Durata totale</span><b style="font-weight:700">${F.dur(r.time+stopsMin*60)}</b></div><div class="kv"><span>Costo</span><b style="font-weight:700">${F.eur(r.cost.total)}</b></div></div>
+      <div style="display:grid;gap:8px;margin-top:12px">
+        <button class="btn wide" id="plSug"><svg><use href="#i-magic"/></svg>Suggerisci le soste (ogni 2 ore)</button>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px"><button class="btn" id="plSave"><svg><use href="#i-star-o"/></svg>Salva viaggio</button><button class="btn" id="plShare"><svg><use href="#i-share"/></svg>Condividi</button></div>
+        <button class="btn green big" id="plGo">Vai</button></div>
+      <div id="plSugOut"></div>`;
+    bindCommon(b);
+    b.querySelectorAll('[data-stay]').forEach(x=>x.onclick=()=>{const s=st.stops[+x.dataset.stay];s.stay=Math.max(0,Math.min(600,(s.stay||0)+(+x.dataset.d)));renderPlanBody()});
+    b.querySelectorAll('[data-dep]').forEach(x=>x.onclick=()=>{st.depart=x.dataset.dep==='now'?null:(st.depart||Date.now()+3600e3);renderPlanBody()});
+    const dp=$('#plDep');if(dp)dp.onchange=()=>{const ts=new Date(dp.value).getTime();if(ts)st.depart=ts;renderPlanBody()};
+    $('#plSave').onclick=()=>saveTrip();
+    $('#plShare').onclick=()=>{let tt=departTs();const lines=[`Viaggio con Sentinella — ${F.km(r.dist)}, ${F.dur(r.time)} di guida, ${F.eur(r.cost.total)}`];
+      st.stops.forEach((s,i)=>{if(i>0)tt+=(legs[i-1]?legs[i-1].time:0)*1000;lines.push(`${F.clock(tt)}  ${i===0&&s.gps?'Partenza':s.name}${s.stay?` (sosta ${s.stay} min)`:''}`);if(i>0&&i<n-1)tt+=(s.stay||0)*60000});share('Itinerario',lines.join('\n'))};
+    $('#plSug').onclick=async()=>{const out=$('#plSugOut');const pts=breakPoints(r);if(!pts.length){out.innerHTML='<p class="note">Il viaggio dura meno di 2 ore: nessuna pausa necessaria.</p>';return}
+      out.innerHTML='<div class="spin"></div>';const sug=[];
+      for(const p of pts){let list=[];try{list=await API.poisNear(catById('services'),p.lat,p.lon,8000)}catch(e){}if(!list.length){try{list=await API.poisNear(catById('fuel'),p.lat,p.lon,5000)}catch(e){}}
+        list.sort((a,b2)=>G.dist(p.lat,p.lon,a.lat,a.lon)-G.dist(p.lat,p.lon,b2.lat,b2.lon));sug.push({p,place:list[0]||null})}
+      out.innerHTML=`<div class="sec"><h3>Soste suggerite</h3></div><div class="group">${sug.map((x,i)=>x.place?item({attr:`data-sg="${i}"`,color:'#FF9F0A',icon:App.catIcon(catById('services'),18),t1:esc(x.place.name),t2:`Dopo ${F.dur(x.p.at)} di guida · sosta 20 min`,rt:'Aggiungi'}):item({color:'#8E8E93',icon:'<svg><use href="#i-clock"/></svg>',t1:`Pausa dopo ${F.dur(x.p.at)}`,t2:'Nessuna area di servizio trovata qui vicino'})).join('')}</div>`;
+      out.querySelectorAll('[data-sg]').forEach(x=>x.onclick=()=>{const s=sug[+x.dataset.sg].place;Plan.addStop(s,insertIndex(s));const added=Plan.st.stops.find(q=>q.lat===s.lat&&q.lon===s.lon);if(added)added.stay=20;App.toast('Sosta aggiunta: '+s.name);render();Plan.compute()})}}
+  // inserisce una tappa nel punto giusto lungo il percorso
+  function insertIndex(p){const r=Plan.route;if(!r)return Plan.st.stops.length-1;const P=G.prep(r.coords);const a=G.proj(p.lat,p.lon,P).along;let idx=1;
+    for(let i=1;i<Plan.st.stops.length-1;i++){const s=Plan.resolve(Plan.st.stops[i]);if(s&&G.proj(s.lat,s.lon,P).along<a)idx=i+1}return idx}
+  /* viaggi salvati */
+  function saveTrip(){const st=Plan.st;const d=st.stops[st.stops.length-1];const trips=Store.get('trips',[]);
+    trips.unshift({id:'t'+Date.now(),name:(st.stops.length>2?`${d.name} con ${st.stops.length-2} ${st.stops.length===3?'tappa':'tappe'}`:d.name),ts:Date.now(),depart:st.depart||null,stops:st.stops.map(s=>s.gps?{gps:true,name:'La mia posizione'}:{name:s.name,lat:s.lat,lon:s.lon,addr:s.addr||'',stay:s.stay||0}),km:Plan.route?Plan.route.dist:0});
+    Store.set('trips',trips.slice(0,30));App.toast('Viaggio salvato: lo trovi nella schermata principale');Voice.buzz(12)}
+  R.trips=()=>{const trips=Store.get('trips',[]);return {detent:'full',html:`${hdr('I miei viaggi')}${trips.length?`<div class="group">${trips.map((t,i)=>item({attr:`data-t="${i}"`,color:'#34C759',icon:'<svg><use href="#i-route"/></svg>',t1:esc(t.name),t2:`${t.stops.length} punti · ${F.km(t.km)}${t.depart?' · partenza '+F.date(t.depart):''}`,chev:true})).join('')}</div><p class="note">Tocca un viaggio per aprirlo. Scorri in basso per eliminarli tutti.</p><button class="btn wide" id="trClr" style="color:var(--red)">Elimina tutti i viaggi salvati</button>`:'<div class="empty">Pianifica un viaggio e tocca «Salva viaggio».</div>'}`,
+    bind(r){r.querySelectorAll('[data-t]').forEach(b=>b.onclick=()=>{const t=trips[+b.dataset.t];Plan.reset();Plan.st.stops=t.stops.map(s=>Object.assign({},s));Plan.st.depart=t.depart&&t.depart>Date.now()?t.depart:null;Plan.st.ver++;planTab='itin';show('plan');Plan.compute()});
+      const c=$('#trClr');if(c)c.onclick=async()=>{if(await App.confirm('Eliminare tutti i viaggi?','','Elimina',true)){Store.set('trips',[]);render()}}}}};
   App.on('altTap',i=>{if(cur&&cur.name==='plan')Plan.select(+i)});
   function startNav(){const r=Plan.route;if(!r)return;if(!App.state.fix&&!App.state.simReady){App.toast('Serve la posizione GPS: attivala per partire');App.startGps();return}
     Nav.start(r,Plan.st.stops.map(s=>Plan.resolve(s)||s));show('nav',{}, {replace:true})}
@@ -330,13 +390,14 @@ const UI = App.UI = (()=>{
         <div class="field"><label>Consumo in città<small id="veU1">${App.FUELS[v.fuel].unit}/100 km</small></label><input type="number" step="0.1" inputmode="decimal" id="veU" value="${v.urb}"></div>
         <div class="field"><label>Consumo extraurbano<small>${App.FUELS[v.fuel].unit}/100 km</small></label><input type="number" step="0.1" inputmode="decimal" id="veE" value="${v.ext}"></div>
         <div class="field"><label>Consumo in autostrada<small>${App.FUELS[v.fuel].unit}/100 km a 130 km/h</small></label><input type="number" step="0.1" inputmode="decimal" id="veA" value="${v.aut}"></div>
+        <div class="field"><label>Serbatoio<small id="veTU">${v.fuel==='elettrica'?'kWh di batteria':v.fuel==='metano'?'kg':'litri'}, per l'autonomia</small></label><input type="number" step="1" inputmode="numeric" id="veT" value="${v.tank||(v.fuel==='elettrica'?55:45)}"></div>
         <div class="field"><label>Classe pedaggio<small>A: auto fino a 1,3 m all'asse anteriore</small></label><select id="veC"><option value="A" ${v.cls==='A'?'selected':''}>Classe A</option><option value="B" ${v.cls==='B'?'selected':''}>Classe B</option></select></div>
       </div>
       <p class="note">Usa i consumi reali del computer di bordo. Se lo conosci in km/l, dividi 100 per quel numero: 15 km/l corrispondono a 6,7 l/100 km.</p>
       <button class="btn primary big" id="veS">Salva</button>${id&&App.vehicles.length>1?'<button class="btn wide" id="veD" style="margin-top:8px;color:var(--red)">Elimina auto</button>':''}`,
       bind(r){r.querySelectorAll('[data-pr]').forEach(b=>b.onclick=()=>{const p=App.PRESETS[+b.dataset.pr];$('#veF').value=p.fuel;$('#veU').value=p.urb;$('#veE').value=p.ext;$('#veA').value=p.aut;if(/Nuova auto|La mia auto/.test($('#veN').value))$('#veN').value=p.name});
         const num=x=>parseFloat(String(x).replace(',','.'))||0;
-        $('#veS').onclick=()=>{const o={id:v.id||'v'+Date.now(),name:$('#veN').value.trim()||'Auto',fuel:$('#veF').value,urb:num($('#veU').value),ext:num($('#veE').value),aut:num($('#veA').value),cls:$('#veC').value};
+        $('#veS').onclick=()=>{const o={id:v.id||'v'+Date.now(),name:$('#veN').value.trim()||'Auto',fuel:$('#veF').value,urb:num($('#veU').value),ext:num($('#veE').value),aut:num($('#veA').value),cls:$('#veC').value,tank:num($('#veT').value)||null};
           const i=App.vehicles.findIndex(x=>x.id===o.id);if(i>=0)App.vehicles[i]=o;else{App.vehicles.push(o);S.vehicle=o.id;App.saveS()}App.saveVeh();back()};
         const d=$('#veD');if(d)d.onclick=()=>{App.vehicles=App.vehicles.filter(x=>x.id!==v.id);if(S.vehicle===v.id){S.vehicle=App.vehicles[0].id;App.saveS()}App.saveVeh();back()}}}};
 
@@ -356,7 +417,8 @@ const UI = App.UI = (()=>{
       <div class="group"><div class="field"><label>Aspetto</label><div class="seg" style="width:60%">${[['auto','Auto'],['light','Chiaro'],['dark','Scuro']].map(([k,l])=>`<button data-th="${k}" class="${S.theme===k?'on':''}">${l}</button>`).join('')}</div></div>${t('buildings3d','Edifici in 3D','Inclina la mappa con due dita')}</div>
       <div class="sec"><h3>Traffico in tempo reale</h3></div>
       <div class="group"><div class="field"><label>Chiave TomTom<small>Gratuita su developer.tomtom.com</small></label><input type="password" id="stTT" value="${esc(S.tomtomKey||'')}" placeholder="facoltativa" autocomplete="off"></div>${t('traffic','Mostra il traffico','Strade colorate per velocità')}</div>
-      <p class="note">Senza chiave i tempi di percorrenza sono senza traffico in tempo reale. Con la chiave vedi il traffico sulla mappa.</p>
+      <div class="group" style="margin-top:8px">${item({attr:'id="stTTg"',color:'#DF1B12',icon:'<b style="font-size:13px">TT</b>',t1:'Come ottenere la chiave gratuita',t2:'5 minuti, nessun costo',chev:true})}</div>
+      <p class="note">Senza chiave i tempi di percorrenza sono senza traffico in tempo reale. Con la chiave vedi il traffico colorato sulla mappa.</p>
       <div class="sec"><h3>Dati</h3></div>
       <div class="group"><div class="kv"><span>Autovelox</span><b>${Guard.info.n.toLocaleString('it-IT')} · ${esc(Guard.info.date)}</b></div><div class="kv"><span>Tratte tutor</span><b>${Guard.info.t}${Guard.info.tdate?' · '+esc(Guard.info.tdate):''}</b></div>
         ${item({attr:'id="stUpd"',color:'#34C759',icon:'<svg><use href="#i-camera"/></svg>',t1:'Aggiorna la zona da OpenStreetMap',t2:'Raggio 30 km, può richiedere un minuto'})}
@@ -366,19 +428,46 @@ const UI = App.UI = (()=>{
         r.querySelectorAll('[data-k]').forEach(i=>i.onchange=()=>{S[i.dataset.k]=i.checked;App.saveS();const k=i.dataset.k;if(k==='buildings3d')MapView.restyle();if(k==='showOff')Guard.publish();if(k==='traffic')App.applyTraffic();if(/^avoid/.test(k)&&Plan.st.routes.length)Plan.compute()});
         r.querySelectorAll('[data-r]').forEach(i=>i.oninput=()=>{S[i.dataset.r]=+i.value;App.saveS();$('#vMar').textContent=S.margin;$('#vLead').textContent=S.lead});
         r.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{S.theme=b.dataset.th;App.saveS();App.applyTheme();MapView.restyle();render()});
-        $('#stTT').onchange=e=>{S.tomtomKey=e.target.value.trim();App.saveS();App.applyTraffic()};
+        $('#stTT').onchange=e=>{S.tomtomKey=e.target.value.trim();App.saveS();App.applyTraffic()};$('#stTTg').onclick=()=>show('ttGuide');
         $('#stUpd').onclick=async()=>{const me=myPos();if(!me)return;App.toast('Scarico i dati della zona…',60000);try{const n=await Guard.refreshArea(me.lat,me.lon);App.toast(`Aggiornati: ${n} autovelox nella zona`)}catch(e){App.toast('Server OpenStreetMap occupato, riprova tra qualche minuto')}};
         $('#stDemo').onclick=()=>App.demo()}}};
+
+  /* ---------- guida chiave TomTom ---------- */
+  R.ttGuide=()=>({detent:'full',html:`${hdr('Chiave TomTom gratuita','Per vedere il traffico in tempo reale')}
+      <div class="group">
+        ${[['Apri il sito','Vai su <a href="https://my.tomtom.com" target="_blank" rel="noopener">my.tomtom.com</a> (da telefono o PC).'],
+           ['Registrati','Tocca «Register» e crea l\'account con la tua email: il piano base è gratuito.'],
+           ['Conferma l\'email','Apri il messaggio che TomTom ti manda e tocca il link di conferma, poi accedi.'],
+           ['Apri le chiavi','Nel menu scegli «API & SDK Keys». Trovi già una chiave pronta che si chiama «My first API key».'],
+           ['Copia la chiave','Tocca la chiave: viene copiata negli appunti (sul sito si vede accorciata, è normale).'],
+           ['Incollala qui sotto','Incolla la chiave nel campo, tocca «Prova la chiave» e poi attiva «Mostra il traffico».']]
+          .map((x,i)=>`<div class="item" style="align-items:flex-start"><span class="ic" style="background:var(--accent);font-weight:700">${i+1}</span><span class="tx"><span class="t1" style="display:block;font-weight:600">${x[0]}</span><span style="display:block;font-size:15px;color:var(--label2);white-space:normal">${x[1]}</span></span></div>`).join('')}
+      </div>
+      <div class="group" style="margin-top:14px"><div class="field"><label>Chiave</label><input type="password" id="ttK" value="${esc(S.tomtomKey||'')}" placeholder="incolla qui" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+        <div class="field"><label>Mostra il traffico</label><input type="checkbox" class="sw" id="ttOn" ${S.traffic?'checked':''}></div></div>
+      <button class="btn primary big" id="ttTest" style="margin-top:12px">Prova la chiave</button>
+      <p class="note" id="ttRes"></p>
+      <p class="note">Il piano gratuito ha un limite di richieste: per un uso personale non lo raggiungi. Se un giorno compare «chiave non valida o limite superato», controlla la chiave su my.tomtom.com. Non condividere la chiave con altri: è legata al tuo account.</p>`,
+    bind(){const k=$('#ttK'),res=$('#ttRes');
+      k.onchange=()=>{S.tomtomKey=k.value.trim();App.saveS();App.applyTraffic()};
+      $('#ttOn').onchange=e=>{if(e.target.checked&&!S.tomtomKey){e.target.checked=false;App.toast('Prima incolla la chiave');return}S.traffic=e.target.checked;App.saveS();App.applyTraffic()};
+      $('#ttTest').onclick=async()=>{const key=k.value.trim();if(!key){res.textContent='Incolla prima la chiave.';return}
+        S.tomtomKey=key;App.saveS();res.textContent='Verifico…';
+        try{const r=await API.tfetch(`https://api.tomtom.com/traffic/map/4/tile/flow/relative0/10/547/377.png?key=${encodeURIComponent(key)}&tileSize=256`,{},10000);
+          if(r.ok){res.innerHTML='<b style="color:var(--green)">Chiave valida.</b> Il traffico è attivo sulla mappa.';S.traffic=true;App.saveS();$('#ttOn').checked=true;App.applyTraffic();Voice.buzz(15)}
+          else if(r.status===403||r.status===401)res.innerHTML='<b style="color:var(--red)">Chiave non valida o limite superato.</b> Controlla di averla copiata tutta.';
+          else res.textContent='Risposta inattesa dal server TomTom ('+r.status+'). Riprova tra poco.'}
+        catch(e){res.textContent='Non riesco a raggiungere TomTom: controlla la connessione.'}}}});
 
   /* ---------- livelli mappa ---------- */
   App.on('layers',()=>{App.modal(`<div class="mb" style="padding-bottom:0"><h4>Mappa</h4></div><div class="layers">
       <button data-m="std" class="${S.mapType==='std'&&!App.isDark()?'on':''}"><span class="lp" style="background:linear-gradient(135deg,#e9eef3 0 40%,#f7d68a 40% 46%,#e9eef3 46% 70%,#bfe3c6 70%)"></span>Esplora</button>
       <button data-m="dark" class="${S.mapType==='std'&&App.isDark()?'on':''}"><span class="lp" style="background:linear-gradient(135deg,#1b1f24 0 40%,#8c6b3e 40% 46%,#1b1f24 46% 70%,#132219 70%)"></span>Notte</button>
       <button data-m="sat" class="${S.mapType==='sat'?'on':''}"><span class="lp" style="background:linear-gradient(135deg,#3d5a3a,#6b7f4a 50%,#4a5a6e)"></span>Satellite</button></div>
-      <div class="group" style="border-radius:0"><div class="field"><label>Edifici in 3D</label><input type="checkbox" class="sw" id="l3d" ${S.buildings3d?'checked':''}></div><div class="field"><label>Traffico${S.tomtomKey?'':'<small>Serve la chiave TomTom nelle impostazioni</small>'}</label><input type="checkbox" class="sw" id="lTr" ${S.traffic?'checked':''} ${S.tomtomKey?'':'disabled'}></div></div>
+      <div class="group" style="border-radius:0"><div class="field"><label>Edifici in 3D</label><input type="checkbox" class="sw" id="l3d" ${S.buildings3d?'checked':''}></div><div class="field"><label>Traffico${S.tomtomKey?'':'<small><a href="#" id="lTTg">Serve la chiave TomTom gratuita: ecco come</a></small>'}</label><input type="checkbox" class="sw" id="lTr" ${S.traffic?'checked':''} ${S.tomtomKey?'':'disabled'}></div></div>
       <div class="mbtns"><button data-x>Fine</button></div>`,(m,close)=>{
       m.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=b.dataset.m;if(k==='sat')S.mapType='sat';else{S.mapType='std';S.theme=k==='dark'?'dark':'light'}App.saveS();App.applyTheme();MapView.restyle();close()});
-      m.querySelector('#l3d').onchange=e=>{S.buildings3d=e.target.checked;App.saveS();MapView.restyle()};m.querySelector('#lTr').onchange=e=>{S.traffic=e.target.checked;App.saveS();App.applyTraffic()};m.querySelector('[data-x]').onclick=close})});
+      const g=m.querySelector('#lTTg');if(g)g.onclick=e=>{e.preventDefault();close();show('ttGuide')};m.querySelector('#l3d').onchange=e=>{S.buildings3d=e.target.checked;App.saveS();MapView.restyle()};m.querySelector('#lTr').onchange=e=>{S.traffic=e.target.checked;App.saveS();App.applyTraffic()};m.querySelector('[data-x]').onclick=close})});
 
   return {show,back,home,render,openPlace,get cur(){return cur}};
 })();

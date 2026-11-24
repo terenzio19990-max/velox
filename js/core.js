@@ -34,7 +34,7 @@ const G = App.G = (()=>{
 
 /* ---------- formattazione ---------- */
 const F = App.F = {
-  km(m){if(m==null||!isFinite(m))return '–';if(m<1000)return (m<100?Math.round(m/5)*5:Math.round(m/10)*10)+' m';const k=m/1000;return (k<10?k.toFixed(1):Math.round(k)).toString().replace('.',',')+' km'},
+  km(m){if(m==null||!isFinite(m))return '–';if(m<995)return (m<100?Math.round(m/5)*5:Math.round(m/10)*10)+' m';const k=m/1000;return (k<10?k.toFixed(1):Math.round(k)).toString().replace('.',',')+' km'},
   kmParts(m){const s=F.km(m);const i=s.lastIndexOf(' ');return [s.slice(0,i),s.slice(i+1)]},
   dur(s){s=Math.max(0,Math.round(s/60));if(s<60)return s+' min';const h=Math.floor(s/60),m=s%60;return h+' h'+(m?' '+m+' min':'')},
   durShort(s){s=Math.max(0,Math.round(s/60));if(s<60)return s+' min';const h=Math.floor(s/60),m=s%60;return h+':'+String(m).padStart(2,'0')+' h'},
@@ -122,22 +122,22 @@ document.addEventListener('visibilitychange',()=>{if(document.visibilityState===
 
 /* ---------- categorie POI ---------- */
 App.CATS = [
-  {k:'fuel',l:'Benzinai',c:'#FF9500',q:'nwr["amenity"="fuel"]',i:'M5 20V5a1.5 1.5 0 011.5-1.5h6A1.5 1.5 0 0114 5v15M3.5 20h12M14 9h2a1.5 1.5 0 011.5 1.5v6a1.5 1.5 0 003 0V8l-3-3M7.5 7.5h4'},
-  {k:'charge',l:'Ricarica',c:'#34C759',q:'nwr["amenity"="charging_station"]',i:'M13 2.5L5.5 13.5H12L11 21.5l7.5-11H12z'},
-  {k:'food',l:'Ristoranti',c:'#FF6B3D',q:'nwr["amenity"~"^(restaurant|fast_food)$"]',i:'M7 3v8a2.5 2.5 0 002.5 2.5V21M4.5 3v5.5A2.5 2.5 0 007 11M9.5 3v5.5A2.5 2.5 0 017 11M17.5 21V3c-2.2 1.2-3.5 3.6-3.5 7v3.5h3.5'},
-  {k:'cafe',l:'Bar e caffè',c:'#A2845E',q:'nwr["amenity"~"^(cafe|bar|pub|ice_cream)$"]',i:'M4.5 9h12v5a5 5 0 01-5 5h-2a5 5 0 01-5-5zM16.5 10.5h1.5a2.5 2.5 0 010 5h-1.5M8 3.5c-.7.8-.7 1.7 0 2.5M12 3.5c-.7.8-.7 1.7 0 2.5'},
-  {k:'parking',l:'Parcheggi',c:'#007AFF',q:'nwr["amenity"="parking"]["access"!~"private|customers"]',i:'M7 21V3.5h6a5 5 0 010 10H7'},
-  {k:'super',l:'Supermercati',c:'#5856D6',q:'nwr["shop"~"^(supermarket|convenience)$"]',i:'M3 4h2.5l2.2 11h10.5l2-8H6.5M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z'},
-  {k:'pharm',l:'Farmacie',c:'#30B05A',q:'nwr["amenity"="pharmacy"]',i:'M12 4v16M4 12h16'},
-  {k:'hosp',l:'Ospedali',c:'#FF3B30',q:'nwr["amenity"~"^(hospital|clinic)$"]',i:'M4 20V6h16v14M9.5 13h5M12 10.5v5M3 20h18'},
-  {k:'hotel',l:'Hotel',c:'#AF52DE',q:'nwr["tourism"~"^(hotel|motel|guest_house)$"]',i:'M3 19V6M3 15h18v4M21 15v-3.5A2.5 2.5 0 0018.5 9H11v6M7 12.5a1.8 1.8 0 100-3.6 1.8 1.8 0 000 3.6z'},
-  {k:'atm',l:'Bancomat',c:'#32ADE6',q:'nwr["amenity"~"^(atm|bank)$"]',i:'M3 7.5h18v11H3zM3 11h18M7 15h3'},
-  {k:'repair',l:'Officine',c:'#8E8E93',q:'nwr["shop"~"^(car_repair|tyres)$"]',i:'M14.5 6.5a4 4 0 00-5.3 5.3L3.5 17.5l3 3 5.7-5.7a4 4 0 005.3-5.3l-2.5 2.5-2.5-.5-.5-2.5z'},
-  {k:'sights',l:'Da visitare',c:'#FF2D55',q:'nwr["tourism"~"^(attraction|museum|viewpoint|gallery)$"]',i:'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z'},
-  {k:'services',l:'Aree di servizio',c:'#FF9F0A',q:'nwr["highway"~"^(services|rest_area)$"]',i:'M4 20V9l8-5 8 5v11M9 20v-6h6v6'},
-  {k:'police',l:'Forze dell\'ordine',c:'#1C3F94',q:'nwr["amenity"="police"]',i:'M12 3l7.5 3v5c0 4.6-3.2 8.6-7.5 10-4.3-1.4-7.5-5.4-7.5-10V6z'},
-  {k:'wash',l:'Autolavaggi',c:'#0FB5BA',q:'nwr["amenity"="car_wash"]',i:'M5 17v-4l1.6-4h10.8l1.6 4v4M3.5 17h17M8 4.5c-.6.9-.6 1.6 0 2.5M12 3.5c-.6.9-.6 1.6 0 2.5M16 4.5c-.6.9-.6 1.6 0 2.5'},
-  {k:'toilets',l:'Bagni',c:'#64748B',q:'nwr["amenity"="toilets"]',i:'M8 6.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 6.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM6 21v-6H4.5L6 9h4l1.5 6H10v6M14.5 21V9h3v12'}
+  {k:'fuel',ph:['amenity:fuel'],nm:'fuel',l:'Benzinai',c:'#FF9500',q:'nwr["amenity"="fuel"]',i:'M5 20V5a1.5 1.5 0 011.5-1.5h6A1.5 1.5 0 0114 5v15M3.5 20h12M14 9h2a1.5 1.5 0 011.5 1.5v6a1.5 1.5 0 003 0V8l-3-3M7.5 7.5h4'},
+  {k:'charge',ph:['amenity:charging_station'],nm:'charging station',l:'Ricarica',c:'#34C759',q:'nwr["amenity"="charging_station"]',i:'M13 2.5L5.5 13.5H12L11 21.5l7.5-11H12z'},
+  {k:'food',ph:['amenity:restaurant', 'amenity:fast_food'],nm:'restaurant',l:'Ristoranti',c:'#FF6B3D',q:'nwr["amenity"~"^(restaurant|fast_food)$"]',i:'M7 3v8a2.5 2.5 0 002.5 2.5V21M4.5 3v5.5A2.5 2.5 0 007 11M9.5 3v5.5A2.5 2.5 0 017 11M17.5 21V3c-2.2 1.2-3.5 3.6-3.5 7v3.5h3.5'},
+  {k:'cafe',ph:['amenity:cafe', 'amenity:bar'],nm:'cafe',l:'Bar e caffè',c:'#A2845E',q:'nwr["amenity"~"^(cafe|bar|pub|ice_cream)$"]',i:'M4.5 9h12v5a5 5 0 01-5 5h-2a5 5 0 01-5-5zM16.5 10.5h1.5a2.5 2.5 0 010 5h-1.5M8 3.5c-.7.8-.7 1.7 0 2.5M12 3.5c-.7.8-.7 1.7 0 2.5'},
+  {k:'parking',ph:['amenity:parking'],nm:'parking',l:'Parcheggi',c:'#007AFF',q:'nwr["amenity"="parking"]["access"!~"private|customers"]',i:'M7 21V3.5h6a5 5 0 010 10H7'},
+  {k:'super',ph:['shop:supermarket', 'shop:convenience'],nm:'supermarket',l:'Supermercati',c:'#5856D6',q:'nwr["shop"~"^(supermarket|convenience)$"]',i:'M3 4h2.5l2.2 11h10.5l2-8H6.5M9 20a1 1 0 100-2 1 1 0 000 2zM17 20a1 1 0 100-2 1 1 0 000 2z'},
+  {k:'pharm',ph:['amenity:pharmacy'],nm:'pharmacy',l:'Farmacie',c:'#30B05A',q:'nwr["amenity"="pharmacy"]',i:'M12 4v16M4 12h16'},
+  {k:'hosp',ph:['amenity:hospital', 'amenity:clinic'],nm:'hospital',l:'Ospedali',c:'#FF3B30',q:'nwr["amenity"~"^(hospital|clinic)$"]',i:'M4 20V6h16v14M9.5 13h5M12 10.5v5M3 20h18'},
+  {k:'hotel',ph:['tourism:hotel', 'tourism:motel', 'tourism:guest_house'],nm:'hotel',l:'Hotel',c:'#AF52DE',q:'nwr["tourism"~"^(hotel|motel|guest_house)$"]',i:'M3 19V6M3 15h18v4M21 15v-3.5A2.5 2.5 0 0018.5 9H11v6M7 12.5a1.8 1.8 0 100-3.6 1.8 1.8 0 000 3.6z'},
+  {k:'atm',ph:['amenity:atm', 'amenity:bank'],nm:'atm',l:'Bancomat',c:'#32ADE6',q:'nwr["amenity"~"^(atm|bank)$"]',i:'M3 7.5h18v11H3zM3 11h18M7 15h3'},
+  {k:'repair',ph:['shop:car_repair', 'shop:tyres'],nm:'car repair',l:'Officine',c:'#8E8E93',q:'nwr["shop"~"^(car_repair|tyres)$"]',i:'M14.5 6.5a4 4 0 00-5.3 5.3L3.5 17.5l3 3 5.7-5.7a4 4 0 005.3-5.3l-2.5 2.5-2.5-.5-.5-2.5z'},
+  {k:'sights',ph:['tourism:attraction', 'tourism:museum', 'tourism:viewpoint'],nm:'tourist attraction',l:'Da visitare',c:'#FF2D55',q:'nwr["tourism"~"^(attraction|museum|viewpoint|gallery)$"]',i:'M12 3l2.6 5.6 6 .7-4.5 4.1 1.2 6L12 16.4 6.7 19.4l1.2-6L3.4 9.3l6-.7z'},
+  {k:'services',ph:['highway:services', 'highway:rest_area'],nm:'services',l:'Aree di servizio',c:'#FF9F0A',q:'nwr["highway"~"^(services|rest_area)$"]',i:'M4 20V9l8-5 8 5v11M9 20v-6h6v6'},
+  {k:'police',ph:['amenity:police'],nm:'police',l:'Forze dell\'ordine',c:'#1C3F94',q:'nwr["amenity"="police"]',i:'M12 3l7.5 3v5c0 4.6-3.2 8.6-7.5 10-4.3-1.4-7.5-5.4-7.5-10V6z'},
+  {k:'wash',ph:['amenity:car_wash'],nm:'car wash',l:'Autolavaggi',c:'#0FB5BA',q:'nwr["amenity"="car_wash"]',i:'M5 17v-4l1.6-4h10.8l1.6 4v4M3.5 17h17M8 4.5c-.6.9-.6 1.6 0 2.5M12 3.5c-.6.9-.6 1.6 0 2.5M16 4.5c-.6.9-.6 1.6 0 2.5'},
+  {k:'toilets',ph:['amenity:toilets'],nm:'toilets',l:'Bagni',c:'#64748B',q:'nwr["amenity"="toilets"]',i:'M8 6.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16 6.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM6 21v-6H4.5L6 9h4l1.5 6H10v6M14.5 21V9h3v12'}
 ];
 App.catIcon = (c,size=24,stroke='#fff')=>`<svg viewBox="0 0 24 24" width="${size}" height="${size}"><path d="${c.i}" fill="none" stroke="${stroke}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
 App.catOf = tags=>{if(!tags)return null;const t=tags;
