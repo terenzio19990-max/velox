@@ -144,7 +144,12 @@ const TT = App.TT = (()=>{
   function usageHtml(){roll();const rows=Object.keys(Q).map(k=>{const n=U.c[k]||0,p=n/Q[k];return `<div class="kv"><span>${LBL[k]}</span><b style="${p>0.8?'color:var(--red)':p>0.5?'color:var(--orange)':''}">${n.toLocaleString('it-IT')} <span style="color:var(--label2);font-weight:400">/ ${Q[k].toLocaleString('it-IT')}</span></b></div>`}).join('');
     return `<div class="sec"><h3>TomTom questo mese</h3></div><div class="group">${rows}</div><p class="note">Quote gratuite mensili. Al 95% Sentinella passa da sola ai servizi liberi: non paghi mai niente.</p>`}
   const _set=App.UI.R.settings;
-  App.UI.R.settings=function(a){const o=_set.apply(this,arguments);if(S.tomtomKey&&o&&o.html)o.html=o.html.replace('<div class="sec"><h3>Recensioni e foto</h3></div>',usageHtml()+'<div class="sec"><h3>Recensioni e foto</h3></div>');return o};
+  App.UI.R.settings=function(a){const o=_set.apply(this,arguments);if(!o||!o.html)return o;if(S.tomtomKey)o.html=o.html.replace('<div class="sec"><h3>Recensioni e foto</h3></div>',usageHtml()+'<div class="sec"><h3>Recensioni e foto</h3></div>');
+    // versione dell'app e aggiornamento forzato
+    o.html+=`<div class="sec"><h3>App</h3></div><div class="group"><div class="kv"><span>Versione</span><b>${App.VERSION} · ${App.BUILD}</b></div></div>
+      <button class="btn wide" id="stUpd" style="margin-top:8px">Scarica l'ultima versione</button><p class="note">Se la versione qui sopra non è l'ultima, tocca il pulsante: svuoto la copia salvata e ricarico da GitHub. Impostazioni, preferiti e viaggi restano.</p>`;
+    const b0=o.bind;o.bind=function(r){if(b0)b0.apply(this,arguments);const u=$('#stUpd');if(u)u.onclick=async()=>{u.textContent='Aggiorno…';try{const ks=await caches.keys();await Promise.all(ks.filter(k=>k!=='snt-tiles').map(k=>caches.delete(k)));const rs=navigator.serviceWorker?await navigator.serviceWorker.getRegistrations():[];await Promise.all(rs.map(x=>x.unregister()))}catch(e){}location.replace(location.pathname+'?v='+Date.now())}};
+    return o};
 
   return {can,use,route,reach,suggest,details,get usage(){roll();return U.c},Q};
 })();

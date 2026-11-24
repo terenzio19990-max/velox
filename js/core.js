@@ -33,6 +33,7 @@ const G = App.G = (()=>{
 })();
 
 /* ---------- formattazione ---------- */
+App.VERSION='2.3';App.BUILD='24 novembre 2026';
 const F = App.F = {
   km(m){if(m==null||!isFinite(m))return '–';if(m<995)return (m<100?Math.round(m/5)*5:Math.round(m/10)*10)+' m';const k=m/1000;return (k<10?k.toFixed(1):Math.round(k)).toString().replace('.',',')+' km'},
   kmParts(m){const s=F.km(m);const i=s.lastIndexOf(' ');return [s.slice(0,i),s.slice(i+1)]},
