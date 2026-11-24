@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<title>Sentinella</title>
+<meta name="theme-color" content="#0d1013">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sentinella">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" href="icon-192.png">
+<link rel="stylesheet" href="leaflet/leaflet.css">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Semi+Condensed:wght@500;600;700;800&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* VOICE: strumento di bordo, calmo finché va tutto bene, netto quando serve.
+   IDEA: la segnaletica stradale italiana — cerchio rosso del limite, pannelli gialli dei cantieri/tutor.
+   PICTURE: la mappa a tutto schermo con il cartello del limite e il tachimetro sopra.
+   COLOUR+TYPE: asfalto #0d1013, rosso segnale #e3262b, giallo tutor #ffbf1f, verde #22c55e; Barlow Semi Condensed.
+   LAYOUT: HUD in alto, avvisi sotto, pannello tutor e dock in basso, fogli a scomparsa. */
+:root{--fc:"Barlow Semi Condensed",-apple-system,"SF Pro Display",system-ui,sans-serif;--bg:#0d1013;--panel:rgba(18,22,26,.92);--panel2:#1a1f25;--line:rgba(255,255,255,.09);--ink:#f3f5f7;--mute:#9aa4ae;--red:#e3262b;--amber:#ffbf1f;--green:#22c55e;--blue:#3b9bff;
+--st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);--sl:env(safe-area-inset-left,0px);--sr:env(safe-area-inset-right,0px)}
+*{box-sizing:border-box;min-width:0;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:16px/1.45 Barlow,system-ui,-apple-system,sans-serif;overflow:hidden;overscroll-behavior:none}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+.cond{font-family:var(--fc)}
+#map{position:fixed;inset:0;background:#15191d;z-index:0}
+.leaflet-control-attribution{font-size:10px;background:rgba(0,0,0,.45)!important;color:#bbb}
+.leaflet-control-attribution a{color:#ddd}
+.leaflet-control-zoom{display:none}
+body.darkmap .leaflet-tile-pane{filter:invert(1) hue-rotate(180deg) brightness(.92) contrast(.92) saturate(.6)}
+/* HUD */
+.hud{position:fixed;z-index:20;top:calc(var(--st) + 8px);left:calc(var(--sl) + 8px);right:calc(var(--sr) + 8px);display:flex;gap:10px;align-items:stretch}
+.card{background:var(--panel);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);border-radius:20px;box-shadow:0 10px 30px rgba(0,0,0,.35)}
+.sign{width:92px;height:92px;flex:none;border-radius:50%;background:#fff;border:11px solid var(--red);display:grid;place-items:center;color:#111;font:800 38px/1 var(--fc);letter-spacing:-1px;position:relative;box-shadow:0 8px 24px rgba(0,0,0,.45);transition:transform .2s}
+.sign.est{border-color:#e9767a}
+.sign.est::after{content:"stimato";position:absolute;bottom:-20px;left:50%;transform:translateX(-50%);font:600 11px Barlow;color:var(--ink);background:rgba(0,0,0,.6);padding:1px 6px;border-radius:6px}
+.sign.none{color:#999;font-size:30px}
+.sign.over{animation:pulse 1s infinite}
+@keyframes pulse{50%{transform:scale(1.08);box-shadow:0 0 0 10px rgba(227,38,43,.35)}}
+.spd{flex:1;padding:8px 14px;display:flex;flex-direction:column;justify-content:center}
+.spdrow{display:flex;align-items:baseline;gap:6px}
+.spdrow b{font:800 58px/0.95 var(--fc);letter-spacing:-1.5px;font-variant-numeric:tabular-nums}
+.spdrow b.over{color:var(--red)}
+.spd small{color:var(--mute);font-size:15px}
+.road{font-size:14px;color:var(--mute);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.road b{color:var(--ink);font-weight:600}
+.gps{position:absolute;top:4px;right:6px;padding:4px 6px;min-height:28px;border-radius:8px;font-size:12px;color:var(--mute);display:flex;align-items:center;gap:5px}
+.dot{width:8px;height:8px;border-radius:50%;background:#666}
+.dot.ok{background:var(--green)}.dot.mid{background:var(--amber)}.dot.bad{background:var(--red)}
+/* Avvisi */
+.alert{position:fixed;z-index:19;left:calc(var(--sl) + 8px);right:calc(var(--sr) + 8px);top:calc(var(--st) + 112px);display:flex;gap:12px;align-items:center;padding:10px 14px;border-left:6px solid var(--red)}
+.alert.tut{border-left-color:var(--amber)}
+.alert .ic{width:46px;height:46px;flex:none;border-radius:12px;display:grid;place-items:center;background:var(--red)}
+.alert.tut .ic{background:var(--amber);color:#111}
+.alert .tx{flex:1}
+.alert .t1{font:700 19px/1.15 var(--fc);}
+.alert .t2{font-size:14px;color:var(--mute)}
+.alert .dd{font:800 32px/1 var(--fc);font-variant-numeric:tabular-nums;white-space:nowrap}
+.alert .dd small{font-size:15px;color:var(--mute);font-weight:600}
+.hidden{display:none!important}
+/* Tutor */
+.tutor{position:fixed;z-index:21;left:calc(var(--sl) + 8px);right:calc(var(--sr) + 8px);bottom:calc(var(--sb) + 84px);padding:12px 14px 14px;border:2px solid var(--amber)}
+.tutor.ok{border-color:var(--green)}.tutor.warn{border-color:var(--amber)}.tutor.bad{border-color:var(--red)}
+.th{display:flex;align-items:center;gap:8px;font:700 15px var(--fc);letter-spacing:.2px;color:var(--amber)}
+.tutor.ok .th{color:var(--green)}.tutor.bad .th{color:var(--red)}
+.th #tState{flex:1}.tnm{color:var(--mute);font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;margin-top:2px}
+.tg{display:grid;grid-template-columns:1.25fr 1fr;gap:10px;margin-top:6px;align-items:center}
+.avg b{font:800 64px/0.9 var(--fc);font-variant-numeric:tabular-nums;letter-spacing:-1.5px}
+.avg small{display:block;color:var(--mute);font-size:13px;margin-top:4px}
+.kv{display:grid;gap:5px;font-size:14px}
+.kv div{display:flex;justify-content:space-between;gap:8px}
+.kv span{color:var(--mute)}
+.kv b{font-variant-numeric:tabular-nums;white-space:nowrap}
+.bar{height:8px;border-radius:5px;background:rgba(255,255,255,.1);margin-top:10px;overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--amber);border-radius:5px;transition:width .6s}
+.tutor.ok .bar i{background:var(--green)}.tutor.bad .bar i{background:var(--red)}
+.advice{margin-top:9px;font-size:15px;line-height:1.3}
+.advice b{font-family:var(--fc);font-size:19px}
+.tbtn{padding:6px 12px;border-radius:10px;background:rgba(255,255,255,.1);font-size:13px;font-weight:600;min-height:34px}
+/* Dock */
+.dock{position:fixed;z-index:22;left:calc(var(--sl) + 8px);right:calc(var(--sr) + 8px);bottom:calc(var(--sb) + 8px);display:grid;grid-template-columns:repeat(6,minmax(0,1fr));padding:6px;gap:2px}
+.dock button{display:flex;flex-direction:column;align-items:center;gap:2px;padding:6px 0;border-radius:14px;font-size:11px;color:var(--mute);min-height:56px;justify-content:center}
+.dock button:active{background:rgba(255,255,255,.08)}
+.dock button.on{color:var(--ink)}
+.dock button.live{color:var(--green)}
+.dock svg{width:24px;height:24px}
+.status{position:fixed;z-index:18;right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 86px);font-size:11px;color:#cfd6dc;background:rgba(0,0,0,.55);padding:3px 8px;border-radius:8px;max-width:70vw;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.tactive .status{display:none}
+.fab{position:fixed;z-index:18;right:calc(var(--sr) + 10px);bottom:calc(var(--sb) + 112px);width:48px;height:48px;border-radius:50%;display:grid;place-items:center}
+body.tactive .fab{display:none}
+.fab svg{width:24px;height:24px}
+/* Sheet */
+.back{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:opacity .25s}
+.back.open{opacity:1;pointer-events:auto}
+.sheet{position:fixed;z-index:41;left:0;right:0;bottom:0;max-height:86vh;overflow:auto;background:#14181c;border-radius:24px 24px 0 0;padding:8px max(18px,var(--sl)) calc(var(--sb) + 24px);transform:translateY(105%);transition:transform .3s cubic-bezier(.2,.8,.2,1);border-top:1px solid var(--line);-webkit-overflow-scrolling:touch}
+.sheet.open{transform:none}
+.grab{width:42px;height:5px;border-radius:3px;background:#3a4148;margin:4px auto 10px}
+.sheet h2{font:700 28px/1.1 var(--fc);margin:4px 0 4px}
+.sheet h3{font:700 17px var(--fc);margin:20px 0 8px;color:var(--mute);letter-spacing:.2px}
+.sheet p{margin:6px 0;color:#c9d1d8}
+.sub{color:var(--mute);font-size:14px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.row .mi{width:38px;height:38px;flex:none;border-radius:10px;display:grid;place-items:center;font:800 14px var(--fc)}
+.row .rt{flex:1}
+.row .r1{font-weight:600;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+.row .r2{font-size:13px;color:var(--mute)}
+.row .rd{font:700 17px var(--fc);white-space:nowrap;font-variant-numeric:tabular-nums}
+.seg{display:flex;gap:6px;margin-top:8px;flex-wrap:wrap}
+.seg button,.btn{min-height:44px;padding:0 14px;border-radius:12px;background:#232a31;font-weight:600;font-size:14px}
+.seg button.sel{background:var(--ink);color:#111}
+.btn.pri{background:var(--red);color:#fff}
+.btn.amb{background:var(--amber);color:#111}
+.btn.wide{width:100%;margin-top:10px;font-size:16px;min-height:52px}
+.chip{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:600}
+.c-on{background:rgba(34,197,94,.18);color:#5be08b}.c-off{background:rgba(154,164,174,.18);color:#b9c2ca}.c-unk{background:rgba(255,191,31,.18);color:var(--amber)}
+.tog{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:12px 0;border-bottom:1px solid var(--line)}
+.tog div{flex:1}.tog small{display:block;color:var(--mute);font-size:13px}
+.sw{appearance:none;-webkit-appearance:none;width:52px;height:32px;border-radius:16px;background:#39424b;position:relative;flex:none;transition:background .2s;cursor:pointer}
+.sw::after{content:"";position:absolute;top:3px;left:3px;width:26px;height:26px;border-radius:50%;background:#fff;transition:transform .2s}
+.sw:checked{background:var(--green)}.sw:checked::after{transform:translateX(20px)}
+.sw:focus-visible,button:focus-visible,input:focus-visible{outline:3px solid var(--blue);outline-offset:2px}
+input[type=range]{width:100%;accent-color:var(--red)}
+input[type=text],input[type=number]{width:100%;min-height:46px;border-radius:12px;border:1px solid #333b43;background:#0f1215;color:var(--ink);padding:0 12px;font-size:16px}
+.tabs{display:flex;gap:6px;margin:10px 0 4px;overflow-x:auto}
+.tabs button{padding:8px 14px;border-radius:999px;background:#232a31;font-size:14px;font-weight:600;white-space:nowrap;min-height:38px}
+.tabs button.sel{background:var(--ink);color:#111}
+.tbl{width:100%;border-collapse:collapse;font-size:14px;margin-top:6px}
+.tbl td,.tbl th{padding:7px 4px;border-bottom:1px solid var(--line);text-align:left}
+.tbl td:last-child,.tbl th:last-child{text-align:right;white-space:nowrap}
+.tbl th{color:var(--mute);font-weight:600;font-size:12.5px}
+.empty{padding:26px 6px;text-align:center;color:var(--mute)}
+a{color:#7cc0ff}
+/* Splash */
+.splash{position:fixed;inset:0;z-index:60;background:radial-gradient(120% 70% at 80% 0%,#2a1012 0%,#0d1013 55%);overflow:auto;padding:calc(var(--st) + 28px) max(22px,var(--sl)) calc(var(--sb) + 28px)}
+.splash .in{max-width:520px;margin:0 auto}
+.logo{display:flex;align-items:center;gap:14px}
+.logo .sign{width:72px;height:72px;border-width:9px;font-size:26px}
+.splash h1{font:800 46px/1 var(--fc);margin:0;letter-spacing:-.5px}
+.splash .lead{font-size:18px;color:#d5dbe0;margin:18px 0 18px}
+.feat{display:grid;gap:10px;margin:0 0 20px;padding:0;list-style:none}
+.feat li{display:flex;gap:12px;align-items:flex-start;background:rgba(255,255,255,.04);border:1px solid var(--line);border-radius:14px;padding:11px 12px}
+.feat i{width:30px;height:30px;flex:none;border-radius:8px;display:grid;place-items:center;font:800 13px var(--fc);font-style:normal}
+.feat b{display:block;font-weight:600}.feat span{font-size:14px;color:var(--mute)}
+.note{font-size:13px;color:var(--mute);margin-top:16px;line-height:1.45}
+.toast{position:fixed;z-index:70;left:50%;top:calc(var(--st) + 120px);transform:translateX(-50%) translateY(-10px);background:#f3f5f7;color:#111;padding:10px 16px;border-radius:14px;font-weight:600;font-size:14px;opacity:0;pointer-events:none;transition:all .25s;max-width:88vw;text-align:center}
+.toast.show{opacity:1;transform:translateX(-50%)}
+.me{width:34px;height:34px;display:grid;place-items:center}
+.me svg{filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));transition:transform .4s}
+.mk{display:grid;place-items:center;border-radius:50%;border:2.5px solid #fff;box-shadow:0 2px 6px rgba(0,0,0,.5);font:800 11px/1 var(--fc);color:#fff}
+@media (min-width:760px){.hud,.alert,.tutor,.dock{left:auto;width:420px;right:calc(var(--sr) + 14px)}.dock{bottom:calc(var(--sb) + 14px)}.sheet{left:auto;right:14px;width:460px;bottom:14px;border-radius:24px;max-height:calc(100vh - 28px)}}
+@media (orientation:landscape) and (max-height:500px){.hud,.alert,.tutor{width:360px;right:auto}.alert{top:calc(var(--st) + 108px)}.tutor{bottom:auto;top:calc(var(--st) + 108px)}.dock{left:auto;width:360px}.sign{width:80px;height:80px;font-size:32px}.spdrow b{font-size:48px}}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+<div id="map"></div>
+
+<header class="hud">
+  <div class="sign none" id="limit">–</div>
+  <div class="card spd" style="position:relative">
+    <div class="gps"><span class="dot" id="gpsdot"></span><span id="gpstx">GPS</span></div>
+    <div class="spdrow"><b id="speed">0</b><small>km/h</small></div>
+    <div class="road" id="road">In attesa della posizione…</div>
+  </div>
+</header>
+
+<section class="alert card hidden" id="alert" aria-live="polite">
+  <div class="ic" id="alIc"></div>
+  <div class="tx"><div class="t1" id="alT1"></div><div class="t2" id="alT2"></div></div>
+  <div class="dd" id="alD"></div>
+</section>
+
+<section class="tutor card hidden" id="tutor" aria-live="polite">
+  <div class="th"><span id="tState">TUTOR ATTIVO</span><button class="tbtn" id="tEnd">Termina</button></div><div class="tnm" id="tName"></div>
+  <div class="tg">
+    <div class="avg"><b id="tAvg">–</b><small id="tAvgL">media km/h</small></div>
+    <div class="kv">
+      <div><span>Limite</span><b id="tLim">–</b></div>
+      <div><span>Percorsi</span><b id="tDone">–</b></div>
+      <div><span>Mancano</span><b id="tLeft">–</b></div>
+      <div><span>Tempo</span><b id="tTime">–</b></div>
+    </div>
+  </div>
+  <div class="bar"><i id="tBar"></i></div>
+  <div class="advice" id="tAdv"></div>
+</section>
+
+<div class="status" id="status">Dati non ancora caricati</div>
+<button class="fab card" id="recenter" aria-label="Centra sulla mia posizione"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3.5"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3"/><circle cx="12" cy="12" r="8"/></svg></button>
+
+<nav class="dock card">
+  <button id="bDrive" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12l14-8-5 16-2.5-6.5z"/></svg><span id="bDriveL">Avvia</span></button>
+  <button id="bTutor"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 18h16M6 18V8M18 18V8M4 8h16"/><path d="M9 13h6"/></svg><span>Tutor man.</span></button>
+  <button id="bReport"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3v12M6 9l6 6 6-6"/><path d="M4 21h16"/></svg><span>Segnala</span></button>
+  <button id="bList"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="4" cy="6" r="1"/><circle cx="4" cy="12" r="1"/><circle cx="4" cy="18" r="1"/></svg><span>Elenco</span></button>
+  <button id="bHist"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg><span>Storico</span></button>
+  <button id="bSet"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg><span>Opzioni</span></button>
+</nav>
+
+<div class="back" id="back"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true"><div class="grab"></div><div id="sheetBody"></div></div>
+<div class="toast" id="toast"></div>
+
+<div class="splash" id="splash">
+  <div class="in">
+    <div class="logo"><div class="sign">SNT</div><div><h1>Sentinella</h1><div class="sub">Autovelox · Tutor · Limiti</div></div></div>
+    <p class="lead">Il copilota che ti dice il limite della strada, dove sono gli autovelox e quanto stai facendo di media dentro ogni tutor.</p>
+    <ul class="feat">
+      <li><i style="background:#fff;color:#111;border:3px solid var(--red);border-radius:50%">90</i><div><b>Limite della strada in tempo reale</b><span>Da OpenStreetMap, con pioggia e neopatentati applicati in automatico.</span></div></li>
+      <li><i style="background:var(--red)">AV</i><div><b>Autovelox in avvicinamento</b><span>Avviso vocale in anticipo, distanza che scende, stato attivo o spento.</span></div></li>
+      <li><i style="background:var(--amber);color:#111">T</i><div><b>Tutor: media, inizio e fine zona</b><span>Velocità media live, km mancanti e la velocità massima che puoi tenere per chiudere in regola.</span></div></li>
+      <li><i style="background:#2b333b">≡</i><div><b>Storico dei passaggi</b><span>Ogni tratta salvata con media, tempo e stima della sanzione, per controllare eventuali multe.</span></div></li>
+    </ul>
+    <button class="btn pri wide" id="goDrive">Avvia la guida</button>
+    <button class="btn wide" id="goSim">Prova la simulazione (senza muoverti)</button>
+    <p class="note">Tieni l'app aperta in primo piano: Safari non permette il GPS a schermo bloccato. Lo schermo resta acceso da solo. Per installarla: Condividi → «Aggiungi alla schermata Home».<br><br>I dati di autovelox e limiti arrivano da OpenStreetMap (© contributori OSM) e possono essere incompleti: i cartelli stradali prevalgono sempre. Usa l'app solo con supporto e senza distrarti.</p>
+  </div>
+</div>
+
+<script src="leaflet/leaflet.js"></script>
+<script>
+{
+'use strict';
+/* ================= utilità ================= */
+const $=s=>document.querySelector(s);
+const esc=v=>String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const R=6371000,rad=d=>d*Math.PI/180,deg=r=>r*180/Math.PI;
+function dist(a,b,c,d){const p1=rad(a),p2=rad(c),dp=rad(c-a),dl=rad(d-b);const h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.min(1,Math.sqrt(h)))}
+function brg(a,b,c,d){const p1=rad(a),p2=rad(c),dl=rad(d-b);const y=Math.sin(dl)*Math.cos(p2),x=Math.cos(p1)*Math.sin(p2)-Math.sin(p1)*Math.cos(p2)*Math.cos(dl);return (deg(Math.atan2(y,x))+360)%360}
+const adiff=(a,b)=>{let d=Math.abs(a-b)%360;return d>180?360-d:d};
+function dest(lat,lon,b,m){const dr=m/R,br=rad(b),p1=rad(lat),l1=rad(lon);const p2=Math.asin(Math.sin(p1)*Math.cos(dr)+Math.cos(p1)*Math.sin(dr)*Math.cos(br));const l2=l1+Math.atan2(Math.sin(br)*Math.sin(dr)*Math.cos(p1),Math.cos(dr)-Math.sin(p1)*Math.sin(p2));return [deg(p2),deg(l2)]}
+function prep(g){const cum=[0];for(let i=1;i<g.length;i++)cum.push(cum[i-1]+dist(g[i-1][0],g[i-1][1],g[i][0],g[i][1]));let b=[90,180,-90,-180];for(const p of g){b=[Math.min(b[0],p[0]),Math.min(b[1],p[1]),Math.max(b[2],p[0]),Math.max(b[3],p[1])]}return {g,cum,len:cum[cum.length-1]||0,b}}
+function proj(lat,lon,P){const k=Math.cos(rad(lat))*111320,m=110574,g=P.g;let best={d:Infinity,along:0,b:0,i:0};
+  for(let i=0;i<g.length-1;i++){const ax=(g[i][1]-lon)*k,ay=(g[i][0]-lat)*m,bx=(g[i+1][1]-lon)*k,by=(g[i+1][0]-lat)*m,dx=bx-ax,dy=by-ay,L2=dx*dx+dy*dy;
+    let t=L2?-(ax*dx+ay*dy)/L2:0;t=Math.max(0,Math.min(1,t));const d=Math.hypot(ax+t*dx,ay+t*dy);
+    if(d<best.d)best={d,i,along:P.cum[i]+t*(P.cum[i+1]-P.cum[i]),b:(deg(Math.atan2(dx,dy))+360)%360}}
+  return best}
+function pointAt(P,s){const c=P.cum,g=P.g;s=Math.max(0,Math.min(P.len,s));let i=0;while(i<c.length-2&&c[i+1]<s)i++;const seg=(c[i+1]-c[i])||1,t=(s-c[i])/seg;
+  return {lat:g[i][0]+(g[i+1][0]-g[i][0])*t,lon:g[i][1]+(g[i+1][1]-g[i][1])*t,b:brg(g[i][0],g[i][1],g[i+1][0],g[i+1][1])}}
+function slicePath(P,a0,a1){const out=[];const A=pointAt(P,a0),B=pointAt(P,a1);out.push([A.lat,A.lon]);for(let i=0;i<P.g.length;i++){if(P.cum[i]>a0&&P.cum[i]<a1)out.push(P.g[i])}out.push([B.lat,B.lon]);return out}
+function simplify(pts,minD){if(pts.length<3)return pts;const o=[pts[0]];for(let i=1;i<pts.length-1;i++){const l=o[o.length-1];if(dist(l[0],l[1],pts[i][0],pts[i][1])>=minD)o.push(pts[i])}o.push(pts[pts.length-1]);return o}
+function load(k,d){try{const v=localStorage.getItem(k);return v?JSON.parse(v):d}catch(e){return d}}
+function save(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true}catch(e){return false}}
+const fmtKm=m=>m==null?'–':(m<1000?Math.round(m/10)*10+' m':(m/1000).toFixed(m<10000?1:0).replace('.',',')+' km');
+const fmtT=s=>{s=Math.max(0,Math.round(s));const h=Math.floor(s/3600),m=Math.floor(s%3600/60),x=s%60;return (h?h+':'+String(m).padStart(2,'0'):m)+':'+String(x).padStart(2,'0')};
+const fmtD=ts=>new Date(ts).toLocaleString('it-IT',{day:'2-digit',month:'2-digit',year:'2-digit',hour:'2-digit',minute:'2-digit'});
+let toastT;function toast(t){const e=$('#toast');e.textContent=t;e.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>e.classList.remove('show'),2600)}
+
+/* ================= stato ================= */
+const DEF={mapSrc:'esri',voice:true,beep:true,neo:false,rain:false,margin:3,lead:20,showOff:false,radius:25,mapDark:true,camVoice:true};
+let S=Object.assign({},DEF,load('snt_set',{}));
+let OVR=load('snt_ovr',{});           // id -> 'attivo'|'dismesso'|'sconosciuto'
+let USER=load('snt_user',{cams:[],tutors:[]});
+let HIST=load('snt_hist',[]);
+let CAMS=[],TUTS=[],WAYS=[];
+let camArea=null,wayCenter=null,camLoading=false,wayLoading=false,camTs=0;
+let pos=null,lastPos=null,hd=null,watchId=null,driving=false,SIM=null,follow=true;
+let cur={way:null,lim:null};
+let ACT=null;                        // tutor attivo
+const announced=new Map(),cool=new Map();
+let overSince=0,lastOverVoice=0,approachSaid=new Set();
+
+/* ================= mappa ================= */
+const map=L.map('map',{zoomControl:false,attributionControl:true,zoomSnap:.5}).setView([41.9,12.5],6);
+let tiles,tileErr=0,tileOk=0;
+const TILES={
+  esri:{u:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}',o:{maxNativeZoom:19,attribution:'Mappa © Esri, HERE, Garmin, © OpenStreetMap'}},
+  osm:{u:'https://tile.openstreetmap.org/{z}/{x}/{y}.png',o:{maxNativeZoom:19,attribution:'© OpenStreetMap'}},
+  sat:{u:'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',o:{maxNativeZoom:18,attribution:'Immagini © Esri, Maxar, Earthstar'}}};
+const ORDER=['esri','osm','sat'];
+function setTiles(){if(tiles)map.removeLayer(tiles);const k=TILES[S.mapSrc]?S.mapSrc:'esri';const t=TILES[k];tileErr=0;tileOk=0;
+  tiles=L.tileLayer(t.u,Object.assign({maxZoom:19},t.o)).addTo(map);
+  tiles.on('tileload',()=>{tileOk++});
+  tiles.on('tileerror',()=>{tileErr++;if(tileErr>=8&&tileOk===0){const nx=ORDER[(ORDER.indexOf(k)+1)%ORDER.length];if(nx!==k&&!setTiles.tried.includes(nx)){setTiles.tried.push(k);S.mapSrc=nx;save('snt_set',S);toast('Mappa non raggiungibile: passo a '+({esri:'Esri',osm:'OpenStreetMap',sat:'satellite'})[nx]);setTiles()}}});
+  document.body.classList.toggle('darkmap',!!S.mapDark&&k!=='sat')}
+setTiles.tried=[];
+setTiles();
+const layCam=L.layerGroup().addTo(map),layTut=L.layerGroup().addTo(map),layAct=L.layerGroup().addTo(map);
+const meIcon=L.divIcon({className:'',html:'<div class="me"><svg id="meArrow" width="34" height="34" viewBox="0 0 34 34"><circle cx="17" cy="17" r="15" fill="#3b9bff" fill-opacity=".22"/><path d="M17 4l9 24-9-5-9 5z" fill="#fff" stroke="#3b9bff" stroke-width="2.5" stroke-linejoin="round"/></svg></div>',iconSize:[34,34],iconAnchor:[17,17]});
+let meMk=null;
+map.on('dragstart',()=>{follow=false});
+$('#recenter').onclick=()=>{follow=true;if(pos)map.setView([pos.lat,pos.lon],zoomFor(pos.spd));};
+const zoomFor=v=>{const k=(v||0)*3.6;return k>95?15:k>55?16:17};
+
+/* ================= limiti ================= */
+const IMPL={'IT:urban':50,'IT:rural':90,'IT:trunk':110,'IT:motorway':130,'IT:living_street':30,'IT:zone30':30,'IT:zone20':20,walk:6};
+function parseMs(v){if(!v)return null;v=String(v).split(';')[0].trim();if(IMPL[v])return IMPL[v];const n=parseFloat(v);if(!isFinite(n))return null;return /mph/.test(v)?Math.round(n*1.609):Math.round(n)}
+function parseCond(v){if(!v)return null;for(const p of String(v).split(';')){const m=p.match(/(\d+)\s*@\s*\(?\s*([^)]*)/);if(m&&/wet|rain|snow|pioggia/i.test(m[2]))return +m[1]}return null}
+const FALL={motorway:130,motorway_link:60,trunk:110,trunk_link:60,primary:90,primary_link:50,secondary:90,secondary_link:50,tertiary:90,tertiary_link:50,unclassified:90,residential:50,living_street:30,road:50};
+function limitFor(w,forward){const t=w.t;let v=parseMs(forward?(t['maxspeed:forward']||t.maxspeed):(t['maxspeed:backward']||t.maxspeed)),est=false;
+  if(v==null){v=FALL[w.hw]||null;if(w.hw==='trunk'&&t.motorroad!=='yes')v=90;est=true}
+  if(v==null)return null;
+  const hw=w.hw.replace('_link','');
+  if(S.rain){const c=parseCond(t['maxspeed:conditional']);if(c)v=Math.min(v,c);if(hw==='motorway')v=Math.min(v,110);else if(hw==='trunk'&&t.motorroad==='yes')v=Math.min(v,90);}
+  if(S.neo){if(hw==='motorway')v=Math.min(v,100);else if(hw==='trunk'&&t.motorroad==='yes')v=Math.min(v,90);}
+  return {v,est}}
+function adjTutorLimit(v){if(v==null)return v;if(S.rain&&v>110)v=110;if(S.neo&&v>100)v=100;return v}
+const tolOf=v=>Math.max(5,v*0.05);
+const thresholdOf=L=>Math.max(L+5,L/0.95);
+function band(ex){if(ex<=0)return null;const m=S.neo?2:1;
+  if(ex<=10)return {e:'42–173 €',p:0,x:''};if(ex<=40)return {e:'173–695 €',p:3*m,x:''};
+  if(ex<=60)return {e:'543–2.170 €',p:6*m,x:'sospensione patente 1–3 mesi'};return {e:'845–3.382 €',p:10*m,x:'sospensione patente 6–12 mesi'}}
+
+/* ================= voce e suoni ================= */
+let AC=null,voiceIt=null;
+function prime(){try{AC=AC||new (window.AudioContext||window.webkitAudioContext)();AC.resume()}catch(e){}
+  try{const u=new SpeechSynthesisUtterance(' ');u.volume=0;speechSynthesis.speak(u);const pick=()=>{const vs=speechSynthesis.getVoices();voiceIt=vs.find(v=>/it[-_]IT/i.test(v.lang)&&/Alice|Federica|Luca|Paola/i.test(v.name))||vs.find(v=>/^it/i.test(v.lang))||null};pick();speechSynthesis.onvoiceschanged=pick}catch(e){}}
+function say(t,urgent){if(!S.voice)return;try{if(urgent)speechSynthesis.cancel();const u=new SpeechSynthesisUtterance(t);u.lang='it-IT';if(voiceIt)u.voice=voiceIt;u.rate=1.05;speechSynthesis.speak(u)}catch(e){}}
+function beep(n=1,f=880){if(!S.beep||!AC)return;try{for(let i=0;i<n;i++){const o=AC.createOscillator(),g=AC.createGain(),t=AC.currentTime+i*.22;o.frequency.value=f;o.type='sine';g.gain.setValueAtTime(0,t);g.gain.linearRampToValueAtTime(.35,t+.02);g.gain.exponentialRampToValueAtTime(.001,t+.18);o.connect(g).connect(AC.destination);o.start(t);o.stop(t+.2)}}catch(e){}}
+let wake=null;async function keepAwake(){try{if('wakeLock' in navigator&&!wake){wake=await navigator.wakeLock.request('screen');wake.addEventListener('release',()=>{wake=null})}}catch(e){}}
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&driving)keepAwake()});
+
+/* ================= Overpass ================= */
+const OP=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter','https://overpass.private.coffee/api/interpreter'];
+let opIdx=0;
+async function overpass(q,ms=35000){let err;for(let k=0;k<OP.length;k++){const url=OP[(opIdx+k)%OP.length];const ac=new AbortController();const tm=setTimeout(()=>ac.abort(),ms);
+  try{const r=await fetch(url,{method:'POST',body:'data='+encodeURIComponent(q),headers:{'Content-Type':'application/x-www-form-urlencoded'},signal:ac.signal});clearTimeout(tm);if(!r.ok)throw new Error('HTTP '+r.status);const j=await r.json();opIdx=(opIdx+k)%OP.length;return j}
+  catch(e){clearTimeout(tm);err=e}}throw err}
+function bbox(lat,lon,km){const dl=km/111,dn=km/(111*Math.cos(rad(lat)));return [lat-dl,lon-dn,lat+dl,lon+dn].map(x=>x.toFixed(5)).join(',')}
+function midOf(geo){const g=geo.map(p=>[p.lat,p.lon]);const P=prep(g);const m=pointAt(P,P.len/2);return [m.lat,m.lon]}
+function joinWays(segs){if(!segs.length)return null;let path=segs[0].slice();
+  for(let i=1;i<segs.length;i++){const s=segs[i],e=path[path.length-1],st=path[0],sl=s[s.length-1];
+    const o=[[dist(e[0],e[1],s[0][0],s[0][1]),0],[dist(e[0],e[1],sl[0],sl[1]),1],[dist(st[0],st[1],sl[0],sl[1]),2],[dist(st[0],st[1],s[0][0],s[0][1]),3]].sort((a,b)=>a[0]-b[0])[0];
+    if(o[0]>500)continue;
+    if(o[1]===0)path=path.concat(s.slice(1));else if(o[1]===1)path=path.concat(s.slice().reverse().slice(1));else if(o[1]===2)path=s.slice(0,-1).concat(path);else path=s.slice().reverse().slice(0,-1).concat(path)}
+  return path}
+function procCams(js){const cams=[],tuts=[],byId={};
+  for(const e of js.elements){if(e.type!=='node'||!e.tags)continue;const t=e.tags;
+    const off=t['disused:highway']==='speed_camera'||t['removed:highway']==='speed_camera'||t['abandoned:highway']==='speed_camera'||t.disused==='yes';
+    const avg=/average/.test((t.enforcement||'')+(t.speed_camera||'')+(t['camera:type']||''));
+    const c={id:'n'+e.id,lat:e.lat,lon:e.lon,kind:avg?'tutorpt':'fixed',limit:parseMs(t.maxspeed),dir:null,status:off?'dismesso':'attivo',src:'osm',name:t.name||t.description||'',ref:t.ref||''};
+    cams.push(c);byId[e.id]=c}
+  for(const e of js.elements){if(e.type!=='relation'||!e.tags)continue;const t=e.tags,mem=e.members||[];const en=t.enforcement||'';
+    const ptOf=(m,end)=>{if(m.type==='node'&&m.lat!=null)return [m.lat,m.lon];if(m.geometry&&m.geometry.length){const g=m.geometry;return end==='mid'?midOf(g):[g[g.length-1].lat,g[g.length-1].lon]}return null};
+    const devs=mem.filter(m=>m.role==='device'&&m.type==='node'&&m.lat!=null);
+    const fromM=mem.find(m=>m.role==='from'),toM=mem.find(m=>m.role==='to');
+    if(en==='maxspeed'||en==='mindistance'){const F=fromM?ptOf(fromM,'mid'):null;
+      for(const d of devs){let c=byId[d.ref];if(!c){c={id:'n'+d.ref,lat:d.lat,lon:d.lon,kind:'fixed',limit:null,dir:null,status:t.disused==='yes'?'dismesso':'attivo',src:'osm',name:t.name||'',ref:''};cams.push(c);byId[d.ref]=c}
+        if(c.limit==null)c.limit=parseMs(t.maxspeed);if(F&&dist(F[0],F[1],d.lat,d.lon)>15)c.dir=brg(F[0],F[1],d.lat,d.lon)}}
+    else if(en==='average_speed'){let A=fromM?ptOf(fromM,'mid'):null,B=toM?ptOf(toM,'mid'):null,bidir=false;
+      if(!A||!B){if(devs.length>=2){A=A||[devs[0].lat,devs[0].lon];B=B||[devs[devs.length-1].lat,devs[devs.length-1].lon];bidir=!fromM&&!toM}else continue}
+      if(dist(A[0],A[1],B[0],B[1])<300)continue;
+      let lim=parseMs(t.maxspeed);for(const d of devs){const c=byId[d.ref];if(c){c.kind='tutorpt';if(lim==null&&c.limit)lim=c.limit}}
+      const secs=mem.filter(m=>m.type==='way'&&m.geometry&&m.geometry.length>1&&m.role!=='from'&&m.role!=='to').map(m=>m.geometry.map(p=>[p.lat,p.lon]));
+      let P=null;const path=joinWays(secs);
+      if(path&&path.length>1){let Q=prep(path);let pa=proj(A[0],A[1],Q),pb=proj(B[0],B[1],Q);
+        if(pa.d<350&&pb.d<350&&Math.abs(pb.along-pa.along)>250){if(pa.along>pb.along){Q=prep(path.slice().reverse());pa=proj(A[0],A[1],Q);pb=proj(B[0],B[1],Q)}P=prep(slicePath(Q,pa.along,pb.along))}}
+      tuts.push({id:'r'+e.id,name:t.name||t.description||('Tutor '+(t.ref||'')).trim(),A,B,P,len:P?P.len:dist(A[0],A[1],B[0],B[1])*1.04,exact:!!P,limit:lim,status:t.disused==='yes'?'dismesso':'attivo',bidir,src:'osm'})}}
+  return {cams,tuts}}
+async function loadCams(force,radiusKm){if(SIM||camLoading||!pos)return;const rk=radiusKm||S.radius;
+  const areas=load('snt_areas',[]);
+  if(!force){const a=areas.find(a=>dist(pos.lat,pos.lon,a.lat,a.lon)<(a.r-8)*1000);
+    if(a&&!camArea){applyCams(a.data,a);if(Date.now()-a.ts<864e5)return}
+    else if(a&&camArea&&camArea.ts===a.ts)return}
+  camLoading=true;setStatus('Scarico autovelox e tutor…');
+  const b=bbox(pos.lat,pos.lon,rk);
+  const q=`[out:json][timeout:60];(node["highway"="speed_camera"](${b});node["disused:highway"="speed_camera"](${b});node["removed:highway"="speed_camera"](${b}););out body;relation["type"="enforcement"]["enforcement"~"^(maxspeed|average_speed|mindistance)$"](${b});out geom;`;
+  try{const js=await overpass(q,70000);const data=procCams(js);const a={lat:pos.lat,lon:pos.lon,r:rk,ts:Date.now(),data};
+    const rest=areas.filter(x=>dist(x.lat,x.lon,a.lat,a.lon)>5000).slice(0,5);rest.unshift(a);
+    if(!save('snt_areas',rest))save('snt_areas',[a]);applyCams(data,a);if(force)toast(`Scaricati ${data.cams.length} autovelox e ${data.tuts.length} tutor`)}
+  catch(e){setStatus('Server dati non raggiungibile: riprovo tra poco');if(force)toast('Download non riuscito, riprova')}
+  finally{camLoading=false}}
+function applyCams(data,a){CAMS=data.cams;TUTS=data.tuts;camArea={lat:a.lat,lon:a.lon,r:a.r,ts:a.ts};camTs=a.ts;drawData();setStatus()}
+async function loadWays(){if(SIM||wayLoading||!pos)return;wayLoading=true;
+  const q=`[out:json][timeout:25];way["highway"~"^(motorway|motorway_link|trunk|trunk_link|primary|primary_link|secondary|secondary_link|tertiary|tertiary_link|unclassified|residential|living_street|road)$"](around:1600,${pos.lat.toFixed(5)},${pos.lon.toFixed(5)});out tags geom;`;
+  try{const js=await overpass(q,30000);const W=[];for(const e of js.elements){if(e.type!=='way'||!e.geometry)continue;const t=e.tags||{};
+      W.push({id:e.id,t,hw:t.highway,oneway:t.oneway==='yes'||t.oneway==='1'||t.highway==='motorway'||t.junction==='roundabout',rev:t.oneway==='-1',name:t.name||'',ref:t.ref||'',P:prep(e.geometry.map(p=>[p.lat,p.lon]))})}
+    WAYS=W;wayCenter={lat:pos.lat,lon:pos.lon}}
+  catch(e){wayCenter=null}finally{wayLoading=false}}
+function matchWay(){if(!pos||!WAYS.length)return null;let best=null,bs=1e9;const m=.0012;
+  for(const w of WAYS){const b=w.P.b;if(pos.lat<b[0]-m||pos.lat>b[2]+m||pos.lon<b[1]-m*1.4||pos.lon>b[3]+m*1.4)continue;
+    const p=proj(pos.lat,pos.lon,w.P);if(p.d>45)continue;let pen=0;
+    if(hd!=null&&pos.spd>3){const d=adiff(hd,p.b);let dd=w.oneway?d:Math.min(d,180-d);pen=dd*.5;if(w.oneway&&(w.rev?d<80:d>100))pen+=90}
+    const s=p.d+pen-(cur.way&&cur.way.w===w?10:0);if(s<bs){bs=s;best={w,p}}}
+  return best}
+
+/* ================= dati: utente + stato ================= */
+const stat=c=>OVR[c.id]||c.status;
+function allCams(){const now=Date.now();USER.cams=USER.cams.filter(c=>!c.exp||c.exp>now);return CAMS.concat(USER.cams)}
+const allTuts=()=>TUTS.concat(USER.tutors);
+function saveUser(){save('snt_user',USER)}
+const kindName=c=>c.kind==='mobile'?'Controllo mobile':c.kind==='tutorpt'?'Portale tutor':'Autovelox fisso';
+function camColor(c){const s=stat(c);return s==='dismesso'?'#6b747c':c.kind==='mobile'?'#3b9bff':c.kind==='tutorpt'?'#e0a200':'#e3262b'}
+function drawData(){layCam.clearLayers();layTut.clearLayers();
+  for(const c of allCams()){const s=stat(c);if(s==='dismesso'&&!S.showOff)continue;const sz=c.kind==='tutorpt'?22:26;
+    const ic=L.divIcon({className:'',html:`<div class="mk" style="width:${sz}px;height:${sz}px;background:${camColor(c)};${s==='sconosciuto'?'border-style:dashed;':''}">${c.limit||(c.kind==='tutorpt'?'T':'AV')}</div>`,iconSize:[sz,sz],iconAnchor:[sz/2,sz/2]});
+    L.marker([c.lat,c.lon],{icon:ic,keyboard:false}).addTo(layCam).bindPopup(`<b>${esc(kindName(c))}</b><br>${c.limit?'Limite '+c.limit+' km/h<br>':''}Stato: ${esc(s)}${c.src==='user'?'<br>Segnalato da te':''}`)}
+  for(const t of allTuts()){const s=stat(t);if(s==='dismesso'&&!S.showOff)continue;const g=t.P?t.P.g:[t.A,t.B];
+    L.polyline(g,{color:s==='dismesso'?'#6b747c':'#ffbf1f',weight:6,opacity:.75,dashArray:t.exact?null:'8 10'}).addTo(layTut).bindPopup(`<b>${esc(t.name||'Tutor')}</b><br>${fmtKm(t.len)}${t.limit?' · limite '+t.limit:''}<br>${t.exact?'Percorso preciso':'Percorso stimato (linea retta)'}`);
+    for(const [p,l] of [[t.A,'IN'],[t.B,'FIN']])L.marker(p,{icon:L.divIcon({className:'',html:`<div class="mk" style="width:28px;height:28px;background:#ffbf1f;color:#111;font-size:10px">${l}</div>`,iconSize:[28,28],iconAnchor:[14,14]})}).addTo(layTut)}}
+function setStatus(t){const e=$('#status');if(t){e.textContent=t;return}
+  if(SIM){e.textContent='Simulazione in corso · dati di prova';return}
+  if(!camArea){e.textContent='Dati non ancora caricati';return}
+  const age=Math.round((Date.now()-camTs)/60000);const n=allCams().filter(c=>stat(c)!=='dismesso').length;
+  e.textContent=`${n} autovelox · ${allTuts().length} tutor · aggiornati ${age<1?'ora':age<60?age+' min fa':age<1440?Math.round(age/60)+' h fa':Math.round(age/1440)+' g fa'}`}
+setInterval(()=>{if(!ACT)setStatus()},60000);
+
+/* ================= GPS ================= */
+let GPS={err:null,errT:0,fixT:0,n:0,lowWatch:null,manual:false};
+const isIOS=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==='MacIntel'&&navigator.maxTouchPoints>1);
+function fromPos(p){GPS.fixT=Date.now();GPS.n++;GPS.err=null;if(GPS.manual)return;
+  onFix({lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy,spd:p.coords.speed,hd:p.coords.heading,t:p.timestamp||Date.now()})}
+function onGpsErr(e){GPS.err=e;GPS.errT=Date.now();if(GPS.fixT&&Date.now()-GPS.fixT<15000)return;
+  $('#gpsdot').className='dot bad';$('#gpstx').textContent=e.code===1?'Posizione negata':e.code===3?'Cerco segnale…':'GPS non disponibile';
+  if(e.code===1&&!onGpsErr.shown){onGpsErr.shown=1;gpsHelp()}}
+function start(){prime();keepAwake();$('#splash').classList.add('hidden');if(SIM)stopSim();
+  if(!('geolocation' in navigator)){toast('Questo browser non fornisce la posizione');gpsHelp();return}
+  if(watchId!=null)return;driving=true;GPS.manual=false;setDriveBtn();$('#gpsdot').className='dot mid';$('#gpstx').textContent='Cerco GPS…';
+  watchId=navigator.geolocation.watchPosition(fromPos,onGpsErr,{enableHighAccuracy:true,maximumAge:0,timeout:15000});
+  // ripiego: se il GPS preciso tarda (PC senza GPS, interni), uso la posizione approssimata da Wi-Fi/rete
+  setTimeout(()=>{if(driving&&!GPS.fixT&&GPS.lowWatch==null){GPS.lowWatch=navigator.geolocation.watchPosition(fromPos,onGpsErr,{enableHighAccuracy:false,maximumAge:60000,timeout:30000})}},8000);
+  setTimeout(()=>{if(driving&&!GPS.fixT){toast('Posizione non ancora trovata: tocca l\'indicatore GPS in alto');}},25000)}
+async function gpsHelp(){let perm='sconosciuto';try{const r=await navigator.permissions.query({name:'geolocation'});perm={granted:'consentita',denied:'NEGATA',prompt:'da chiedere'}[r.state]||r.state}catch(e){}
+  const proto=location.protocol,host=location.hostname;const insecure=proto==='http:'&&!/^(localhost|127\.0\.0\.1)$/.test(host);
+  const e=GPS.err;const errTx=!e?'nessuno':e.code===1?'permesso negato':e.code===2?'posizione non disponibile (nessuna sorgente)':e.code===3?'tempo scaduto (segnale debole)':e.message;
+  const last=pos?`${pos.lat.toFixed(5)}, ${pos.lon.toFixed(5)} · ±${Math.round(pos.acc)} m · ${Math.round((Date.now()-GPS.fixT)/1000)} s fa`:'mai ricevuta';
+  openSheet(`<h2>Posizione</h2>
+   <table class="tbl"><tr><td>Permesso del browser</td><td>${esc(perm)}</td></tr><tr><td>Ultima posizione</td><td>${esc(last)}</td></tr><tr><td>Posizioni ricevute</td><td>${GPS.n}</td></tr><tr><td>Ultimo errore</td><td>${esc(errTx)}</td></tr><tr><td>Pagina</td><td>${esc(proto==='file:'?'file locale':proto+'//'+host)}</td></tr></table>
+   ${insecure?'<p style="color:#ff6b6f"><b>La pagina è in http:</b> i browser danno la posizione solo in https. Pubblicala con Netlify Drop.</p>':''}
+   ${pos&&pos.acc>100?'<p><b>Precisione bassa (±'+Math.round(pos.acc)+' m):</b> la posizione arriva dal Wi-Fi, non da un GPS. Sul PC è normale; sull\'iPhone all\'aperto scende a pochi metri.</p>':''}
+   <h3>${isIOS?'Su iPhone':'Sul PC (Windows + Chrome)'}</h3>
+   ${isIOS?`<p>1. Impostazioni → Privacy e sicurezza → Localizzazione: attiva.<br>2. Sempre lì → Siti web di Safari → «Durante l'uso», con «Posizione esatta» attiva.<br>3. Impostazioni → Safari → Posizione → «Consenti» o «Chiedi».<br>4. Ricarica la pagina e premi Avvia.</p>`
+   :`<p>1. Impostazioni di Windows → Privacy e sicurezza → Posizione: attiva «Servizi di localizzazione» e «Consenti alle app desktop di accedere alla posizione».<br>2. Wi-Fi acceso (anche senza connetterti): Windows stima la posizione dalle reti vicine.<br>3. In Chrome: icona a sinistra dell'indirizzo → Posizione → Consenti, poi ricarica.<br>Un PC non ha un GPS: la posizione resta approssimata e non si muove. Per provare i tutor usa la simulazione.</p>`}
+   <button class="btn pri wide" id="gRetry">Riprova adesso</button>
+   <button class="btn wide" id="gHere">Usa il centro della mappa come posizione (prova)</button>
+   <button class="btn wide" data-close>Chiudi</button>`);
+  $('#gRetry').onclick=()=>{closeSheet();stop();GPS={err:null,errT:0,fixT:0,n:0,lowWatch:null,manual:false};start();
+    navigator.geolocation.getCurrentPosition(fromPos,onGpsErr,{enableHighAccuracy:false,maximumAge:300000,timeout:20000})};
+  $('#gHere').onclick=()=>{closeSheet();if(!driving)start();GPS.manual=true;const c=map.getCenter();onFix({lat:c.lat,lon:c.lng,acc:10,spd:0,hd:null,t:Date.now()});$('#gpstx').textContent='Manuale';toast('Posizione impostata sul centro mappa')}}
+$('.gps').onclick=gpsHelp;$('.gps').style.cursor='pointer';
+function stop(){if(watchId!=null)navigator.geolocation.clearWatch(watchId);if(GPS.lowWatch!=null)navigator.geolocation.clearWatch(GPS.lowWatch);GPS.lowWatch=null;watchId=null;driving=false;if(wake){wake.release().catch(()=>{});wake=null}setDriveBtn()}
+function setDriveBtn(){const b=$('#bDrive');b.classList.toggle('live',driving||!!SIM);$('#bDriveL').textContent=SIM?'Ferma sim':driving?'Pausa':'Avvia'}
+$('#bDrive').onclick=()=>{if(SIM){stopSim();return}driving?stop():start()};
+$('#goDrive').onclick=start;$('#goSim').onclick=()=>{prime();$('#splash').classList.add('hidden');startSim()};
+
+function onFix(f){
+  // velocità: dal GPS se disponibile, altrimenti calcolata
+  if(f.spd==null||f.spd<0||isNaN(f.spd)){if(lastPos&&f.t>lastPos.t){const d=dist(lastPos.lat,lastPos.lon,f.lat,f.lon);f.spd=d/((f.t-lastPos.t)/1000)}else f.spd=0}
+  if(f.acc>80&&f.spd<1)f.spd=0;
+  if(f.hd!=null&&!isNaN(f.hd)&&f.hd>=0&&f.spd>2)hd=f.hd;
+  else if(lastPos&&dist(lastPos.lat,lastPos.lon,f.lat,f.lon)>8&&f.spd>1.5)hd=brg(lastPos.lat,lastPos.lon,f.lat,f.lon);
+  pos=f;
+  const q=f.acc<=15?'ok':f.acc<=40?'mid':'bad';$('#gpsdot').className='dot '+q;$('#gpstx').textContent='±'+Math.round(f.acc||0)+' m';
+  if(!meMk)meMk=L.marker([f.lat,f.lon],{icon:meIcon,interactive:false,zIndexOffset:1000}).addTo(map);else meMk.setLatLng([f.lat,f.lon]);
+  const ar=document.getElementById('meArrow');if(ar)ar.style.transform=`rotate(${hd||0}deg)`;
+  if(follow){const z=zoomFor(f.spd);if(!lastPos||Math.abs(map.getZoom()-z)>.6)map.setView([f.lat,f.lon],z,{animate:false});else map.panTo([f.lat,f.lon],{animate:true,duration:.8})}
+  // dati
+  if(!SIM){if(!camArea||dist(f.lat,f.lon,camArea.lat,camArea.lon)>(camArea.r-10)*1000)loadCams(false);
+    if(!wayCenter||dist(f.lat,f.lon,wayCenter.lat,wayCenter.lon)>700)loadWays()}
+  // limite
+  const m=matchWay();if(m){const fw=hd==null?true:adiff(hd,m.p.b)<90;cur.way=m;cur.lim=limitFor(m.w,fw)}else if(!cur.way||!pos||(cur.way&&proj(pos.lat,pos.lon,cur.way.w.P).d>60)){cur.way=null;cur.lim=null}
+  renderHud();
+  checkTutor();checkCams();
+  lastPos=f}
+
+/* ================= HUD ================= */
+function renderHud(){const k=Math.round((pos.spd||0)*3.6);$('#speed').textContent=k;
+  const L_=cur.lim;const s=$('#limit');
+  if(L_){s.textContent=L_.v;s.className='sign'+(L_.est?' est':'')}else{s.textContent='–';s.className='sign none'}
+  let over=false;if(L_&&k>L_.v+S.margin){over=true;if(!overSince)overSince=pos.t}else overSince=0;
+  s.classList.toggle('over',over);$('#speed').classList.toggle('over',over);
+  if(over&&pos.t-overSince>3000&&Date.now()-lastOverVoice>25000){lastOverVoice=Date.now();beep(2,990);say('Limite '+L_.v)}
+  const w=cur.way&&cur.way.w;$('#road').innerHTML=w?`<b>${esc(w.ref||'')}</b>${w.ref&&w.name?' · ':''}${esc(w.name||(!w.ref?'Strada senza nome':''))}`:(WAYS.length||SIM?'Strada non riconosciuta':'Carico i limiti…')}
+
+/* ================= autovelox ================= */
+function checkCams(){if(ACT&&!ACT.manual){/* durante il tutor mostro comunque i velox */}
+  if(!pos)return;const sp=pos.spd||0;const lead=Math.max(300,Math.min(1300,sp*S.lead));let best=null;
+  for(const c of allCams()){const s=stat(c);if(s==='dismesso')continue;if(c.kind==='tutorpt')continue;
+    const d=dist(pos.lat,pos.lon,c.lat,c.lon);if(d>3000)continue;
+    if(hd==null){if(d<250&&(!best||d<best.d))best={c,d,s};continue}
+    const ad=adiff(hd,brg(pos.lat,pos.lon,c.lat,c.lon));const ahead=ad<32||(d<160&&ad<65);
+    if(!ahead){if(announced.has(c.id)&&d>120)announced.delete(c.id);continue}
+    if(c.dir!=null&&adiff(hd,c.dir)>100)continue;
+    if(!best||d<best.d)best={c,d,s}}
+  const box=$('#alert');
+  // avviso tutor in avvicinamento ha priorità più bassa del velox vicino
+  const appr=!ACT?tutorAhead():null;
+  if(best&&best.d<lead*1.6){const c=best.c,lim=c.limit||(cur.lim&&cur.lim.v)||null,k=Math.round(sp*3.6);
+    box.className='alert card';$('#alIc').innerHTML='<svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="3" y="7" width="14" height="10" rx="2"/><path d="M17 10l4-2v8l-4-2"/><circle cx="10" cy="12" r="2.5"/></svg>';
+    $('#alT1').textContent=kindName(c);
+    $('#alT2').innerHTML=(best.s==='sconosciuto'?'<span class="chip c-unk">stato incerto</span> ':'')+(lim?'Limite '+lim+' · ':'')+(lim&&k>lim?`<b style="color:#ff6b6f">sei a ${k}, rallenta</b>`:lim?'velocità ok':'limite non noto');
+    $('#alD').innerHTML=fmtKm(best.d).replace(/ (m|km)$/,' <small>$1</small>');
+    if(best.d<lead&&!announced.has(c.id)){announced.set(c.id,Date.now());beep(1,880);if(S.camVoice)say(`${kindName(c)} tra ${best.d<1000?Math.round(best.d/50)*50+' metri':(best.d/1000).toFixed(1).replace('.',',')+' chilometri'}${lim?', limite '+lim:''}`,true)}
+    if(lim&&k>lim+S.margin&&best.d<250&&!announced.has(c.id+'!')){announced.set(c.id+'!',Date.now());beep(3,1100);say('Rallenta',true)}}
+  else if(appr){box.className='alert card tut';$('#alIc').innerHTML='<b style="font:800 20px var(--fc)">T</b>';
+    $('#alT1').textContent='Tutor in arrivo';
+    $('#alT2').textContent=(appr.t.limit?'Limite '+adjTutorLimit(appr.t.limit)+' · ':'')+fmtKm(appr.t.len)+' · '+(appr.t.name||'');
+    $('#alD').innerHTML=fmtKm(appr.d).replace(/ (m|km)$/,' <small>$1</small>');
+    if(!approachSaid.has(appr.t.id)&&appr.d<Math.max(600,sp*25)){approachSaid.add(appr.t.id);beep(1,700);say(`Tutor tra ${appr.d<1000?Math.round(appr.d/50)*50+' metri':(appr.d/1000).toFixed(1).replace('.',',')+' chilometri'}`)}}
+  else box.className='alert card hidden'}
+
+/* ================= tutor ================= */
+function orientations(t){const o=[{A:t.A,B:t.B,rev:false}];if(t.bidir)o.push({A:t.B,B:t.A,rev:true});return o}
+function tutorAhead(){if(!pos||hd==null)return null;let best=null;
+  for(const t of allTuts()){if(stat(t)==='dismesso')continue;for(const o of orientations(t)){const d=dist(pos.lat,pos.lon,o.A[0],o.A[1]);if(d>2500||d<40)continue;
+    if(adiff(hd,brg(pos.lat,pos.lon,o.A[0],o.A[1]))<30&&adiff(hd,brg(o.A[0],o.A[1],o.B[0],o.B[1]))<70&&(!best||d<best.d))best={t,o,d}}}
+  return best}
+function checkTutor(){if(!pos)return;if(ACT){updTutor();return}if((pos.spd||0)<4)return;
+  for(const t of allTuts()){if(stat(t)==='dismesso')continue;if(cool.has(t.id)&&pos.t-cool.get(t.id)<6e5)continue;
+    for(const o of orientations(t)){const dA=dist(pos.lat,pos.lon,o.A[0],o.A[1]);const toB=hd==null?0:adiff(hd,brg(pos.lat,pos.lon,o.B[0],o.B[1]));
+      let P=t.P?(o.rev?prep(t.P.g.slice().reverse()):t.P):null;
+      if(dA<Math.max(90,(pos.spd||0)*2.6)&&toB<75){beginTutor(t,o,P,0,false);return}
+      if(P){const p=proj(pos.lat,pos.lon,P);if(p.d<35&&hd!=null&&adiff(hd,p.b)<35&&p.along>150&&p.along<P.len-400){beginTutor(t,o,P,p.along,true);return}}}}}
+function beginTutor(t,o,P,off,partial){const Lm=adjTutorLimit(t.limit)||(cur.lim&&cur.lim.v)||null;
+  ACT={t,B:o.B,P,off,len:(P?P.len:t.len)-off,t0:pos.t,prog:0,last:pos,minD:Infinity,offT:0,partial,manual:false,L:Lm,overSaid:false,kmSaid:false,track:[[pos.lat,pos.lon]],maxV:0};
+  layAct.clearLayers();if(P)L.polyline(P.g,{color:'#fff',weight:3,opacity:.9}).addTo(layAct);
+  document.body.classList.add('tactive');$('#tutor').classList.remove('hidden');
+  beep(2,660);say(`Inizio tutor${Lm?', limite '+Lm:''}. Lunghezza ${(ACT.len/1000).toFixed(1).replace('.',',')} chilometri`+(partial?'. Media parziale, sei entrato a tratta iniziata':''),true);
+  renderTutor()}
+function startManual(){if(!pos){toast('Serve prima il GPS: premi Avvia');return}if(ACT){toast('Un tutor è già attivo');return}
+  const Lm=(cur.lim&&cur.lim.v)||130;
+  ACT={t:{id:'manual',name:'Tratta manuale',limit:Lm},B:null,P:null,off:0,len:null,t0:pos.t,prog:0,last:pos,minD:Infinity,offT:0,partial:false,manual:true,L:Lm,overSaid:false,kmSaid:false,track:[[pos.lat,pos.lon]],maxV:0};
+  document.body.classList.add('tactive');$('#tutor').classList.remove('hidden');layAct.clearLayers();beep(2,660);say('Tutor manuale avviato, limite '+Lm,true);renderTutor()}
+function updTutor(){const a=ACT;const dt=Math.max(0,(pos.t-a.last.t)/1000);
+  if(a.P){const p=proj(pos.lat,pos.lon,a.P);if(p.d<150){a.prog=Math.max(a.prog,Math.min(a.len,p.along-a.off));a.offT=0}else a.offT+=dt}
+  else if(pos.acc<70||SIM){a.prog+=dist(a.last.lat,a.last.lon,pos.lat,pos.lon)}
+  a.last=pos;a.maxV=Math.max(a.maxV,(pos.spd||0)*3.6);
+  const tl=a.track[a.track.length-1];if(dist(tl[0],tl[1],pos.lat,pos.lon)>40)a.track.push([pos.lat,pos.lon]);
+  if(!a.manual){const dB=dist(pos.lat,pos.lon,a.B[0],a.B[1]);a.minD=Math.min(a.minD,dB);
+    const done=(a.P&&a.prog>=a.len-25)||dB<45||(a.minD<300&&dB>a.minD+120)||(!a.P&&a.prog>a.len*1.6)||a.offT>40;
+    if(done){endTutor(a.offT>40?'uscito':'fine');return}}
+  if(!a.L&&cur.lim)a.L=cur.lim.v;
+  const st=tStats();
+  if(st.avg!=null&&a.L){if(st.avg>a.L&&!a.overSaid&&st.el>25){a.overSaid=true;beep(2,990);say('Attenzione, media sopra il limite: '+Math.round(st.avg))}else if(st.avg<a.L-2&&a.overSaid)a.overSaid=false}
+  if(!a.manual&&!a.kmSaid&&st.left!=null&&st.left<1000&&st.left>200){a.kmSaid=true;say('Ultimo chilometro di tutor. Media '+Math.round(st.avg||0))}
+  renderTutor()}
+function tStats(){const a=ACT;const el=(pos.t-a.t0)/1000;const avg=el>2?a.prog/el*3.6:null;const left=a.len!=null?Math.max(0,a.len-a.prog):null;let vmax=null,vtol=null,imp=false;
+  if(a.L&&left!=null&&left>60){const budget=a.len/(a.L/3.6)-el;if(budget<=0)imp=true;else vmax=left/budget*3.6;
+    const th=thresholdOf(a.L);const b2=a.len/(th/3.6)-el;if(b2>0)vtol=left/b2*3.6}
+  return {el,avg,left,vmax,vtol,imp}}
+function renderTutor(){const a=ACT,st=tStats();const box=$('#tutor');
+  $('#tName').textContent=a.t.name||'';$('#tAvg').textContent=st.avg==null?'–':Math.round(st.avg);
+  $('#tAvgL').textContent=a.partial?'media parziale km/h':'media km/h';
+  $('#tLim').textContent=a.L?a.L+' km/h':'n.d.';$('#tDone').textContent=fmtKm(a.prog);$('#tLeft').textContent=a.manual?'—':fmtKm(st.left);$('#tTime').textContent=fmtT(st.el);
+  $('#tBar').style.width=a.len?Math.min(100,a.prog/a.len*100)+'%':'0%';
+  let cls='ok',state='TUTOR · IN REGOLA',adv='';
+  if(a.L&&st.avg!=null){const th=thresholdOf(a.L);
+    if(st.avg>th){cls='bad';state='TUTOR · MEDIA OLTRE SOGLIA'}else if(st.avg>a.L){cls='warn';state='TUTOR · ENTRO TOLLERANZA'}}
+  if(a.manual)adv='Tratta manuale: premi Termina all\'uscita per salvarla e riconoscerla in automatico le prossime volte.';
+  else if(!a.L)adv='Limite non noto per questa tratta.';
+  else if(st.imp)adv='<b style="color:#ff6b6f">Media già oltre il limite</b> anche andando piano: ora conta solo restare il più basso possibile.';
+  else if(st.vmax!=null)adv=`Per chiudere entro il limite puoi tenere al massimo <b>${Math.round(Math.min(st.vmax,250))} km/h</b> nel resto della tratta.`+(st.vtol&&st.vtol>st.vmax+1?` <span class="sub">Soglia sanzione stimata: ${Math.round(Math.min(st.vtol,250))}.</span>`:'');
+  else adv='Quasi alla fine della tratta.';
+  box.className='tutor card '+cls;$('#tState').textContent=state;$('#tAdv').innerHTML=adv}
+function endTutor(why){const a=ACT;if(!a)return;const st=tStats();ACT=null;cool.set(a.t.id,pos.t);
+  document.body.classList.remove('tactive');$('#tutor').classList.add('hidden');layAct.clearLayers();
+  const avg=st.el>2?a.prog/st.el*3.6:0;const L=a.L;
+  let ex=0;if(L){const contest=avg-tolOf(avg);ex=Math.round((contest-L)*10)/10}
+  const rec={ts:Date.now(),name:a.t.name||'Tutor',len:Math.round(a.prog),secs:Math.round(st.el),avg:Math.round(avg*10)/10,L,ex,partial:a.partial,manual:a.manual,why,maxV:Math.round(a.maxV)};
+  if(a.prog>300){HIST.unshift(rec);HIST=HIST.slice(0,300);save('snt_hist',HIST)}
+  beep(1,520);say(`Fine tutor. Media ${Math.round(avg)} chilometri orari`+(L?(ex>0?', oltre il limite':', in regola'):''),true);
+  if(a.manual&&a.track.length>3&&a.prog>500)return askSaveManual(a,rec);
+  const b=L?band(ex):null;
+  openSheet(`<h2>Fine tutor</h2><p class="sub">${esc(rec.name)}${why==='uscito'?' · sei uscito dalla tratta':''}</p>
+    <div style="display:flex;gap:16px;align-items:baseline;margin:10px 0"><b class="cond" style="font-size:64px;line-height:1">${Math.round(avg)}</b><span class="sub">km/h di media</span></div>
+    ${resultTable(rec,b)}<button class="btn wide" data-close>Chiudi · si chiude da sola</button>`);autoClose(10000)}
+function resultTable(r,b){return `<table class="tbl"><tr><td>Distanza</td><td>${fmtKm(r.len)}</td></tr><tr><td>Tempo</td><td>${fmtT(r.secs)}</td></tr><tr><td>Limite</td><td>${r.L?r.L+' km/h':'n.d.'}</td></tr>
+  <tr><td>Media dopo tolleranza (−5%, min 5)</td><td>${r.L?Math.round(r.avg-tolOf(r.avg))+' km/h':'–'}</td></tr>
+  <tr><td>Esito stimato</td><td>${!r.L?'–':r.ex<=0?'<span class="chip c-on">In regola</span>':`<span class="chip" style="background:rgba(227,38,43,.2);color:#ff6b6f">+${r.ex} km/h</span>`}</td></tr>
+  ${b?`<tr><td>Sanzione art. 142 CdS</td><td>${b.e}</td></tr><tr><td>Punti patente</td><td>${b.p}${b.x?' · '+b.x:''}</td></tr>`:''}
+  ${r.partial?'<tr><td colspan="2" class="sub">Media parziale: sei entrato a tratta già iniziata.</td></tr>':''}</table>`}
+function askSaveManual(a,rec){openSheet(`<h2>Salvare la tratta?</h2><p>Media ${Math.round(rec.avg)} km/h su ${fmtKm(rec.len)}. Salvandola, la prossima volta Sentinella la riconoscerà da sola all'ingresso.</p>
+  <h3>Nome</h3><input type="text" id="mName" value="Tutor ${esc(fmtD(rec.ts))}" maxlength="60"><h3>Limite (km/h)</h3><input type="number" id="mLim" inputmode="numeric" value="${a.L||130}">
+  <button class="btn amb wide" id="mSave">Salva tratta tutor</button><button class="btn wide" data-close>Non salvare</button>`);
+  $('#mSave').onclick=()=>{const g=simplify(a.track,40);const P=prep(g);USER.tutors.push({id:'u'+Date.now(),name:$('#mName').value.trim()||'Tutor',A:g[0],B:g[g.length-1],P,len:P.len,exact:true,limit:+$('#mLim').value||null,status:'attivo',bidir:false,src:'user'});saveUser();drawData();closeSheet();toast('Tratta salvata')}}
+$('#tEnd').onclick=()=>{if(ACT)endTutor('manuale')};
+$('#bTutor').onclick=()=>{if(ACT){endTutor('manuale');return}startManual()};
+
+/* ================= fogli ================= */
+let acT=null;function autoClose(ms){clearTimeout(acT);const body=$('#sheetBody').innerHTML;acT=setTimeout(()=>{if($('#sheetBody').innerHTML===body)closeSheet()},ms)}
+function openSheet(html){clearTimeout(acT);$('#sheetBody').innerHTML=html;$('#sheet').classList.add('open');$('#back').classList.add('open');$('#sheet').scrollTop=0}
+function closeSheet(){$('#sheet').classList.remove('open');$('#back').classList.remove('open')}
+$('#back').onclick=closeSheet;document.addEventListener('keydown',e=>{if(e.key==='Escape')closeSheet()});$('#sheet').addEventListener('click',e=>{if(e.target.closest('[data-close]'))closeSheet()});
+let sy=null;$('#sheet').addEventListener('touchstart',e=>{if($('#sheet').scrollTop<=0)sy=e.touches[0].clientY},{passive:true});
+$('#sheet').addEventListener('touchend',e=>{if(sy!=null&&e.changedTouches[0].clientY-sy>90)closeSheet();sy=null},{passive:true});
+
+// Elenco
+let listFilter='tutti';
+function sheetList(){const P=pos||{lat:map.getCenter().lat,lon:map.getCenter().lng};
+  const items=allCams().filter(c=>c.kind!=='tutorpt').map(c=>({o:c,type:'cam',d:dist(P.lat,P.lon,c.lat,c.lon)})).concat(allTuts().map(t=>({o:t,type:'tut',d:Math.min(dist(P.lat,P.lon,t.A[0],t.A[1]),dist(P.lat,P.lon,t.B[0],t.B[1]))})))
+    .filter(x=>listFilter==='tutti'||(listFilter==='attivi'?stat(x.o)!=='dismesso':listFilter==='spenti'?stat(x.o)==='dismesso':x.type==='tut')).sort((a,b)=>a.d-b.d).slice(0,80);
+  const cnt={a:0,s:0,u:0};for(const c of allCams().concat(allTuts())){const s=stat(c);s==='dismesso'?cnt.s++:s==='sconosciuto'?cnt.u++:cnt.a++}
+  const chip=s=>s==='dismesso'?'<span class="chip c-off">spento</span>':s==='sconosciuto'?'<span class="chip c-unk">da verificare</span>':'<span class="chip c-on">attivo</span>';
+  openSheet(`<h2>Nella zona</h2><p class="sub">${cnt.a} attivi · ${cnt.s} spenti · ${cnt.u} da verificare. Tocca una voce per cambiarne lo stato.</p>
+   <div class="tabs">${['tutti','attivi','spenti','tutor'].map(f=>`<button data-f="${f}" class="${f===listFilter?'sel':''}">${f[0].toUpperCase()+f.slice(1)}</button>`).join('')}</div>
+   ${items.length?items.map(x=>{const o=x.o,s=stat(o);const col=x.type==='tut'?'#ffbf1f':camColor(o);return `<div class="row" data-id="${esc(o.id)}">
+     <div class="mi" style="background:${col};color:${x.type==='tut'?'#111':'#fff'}">${x.type==='tut'?'T':(o.limit||'AV')}</div>
+     <div class="rt"><div class="r1">${esc(x.type==='tut'?(o.name||'Tutor'):(o.name||kindName(o)))}</div><div class="r2">${chip(s)} ${x.type==='tut'?fmtKm(o.len)+(o.limit?' · '+o.limit+' km/h':''):kindName(o)}${o.src==='user'?' · tua segnalazione':''}</div></div>
+     <div class="rd">${fmtKm(x.d)}</div></div>`}).join(''):`<div class="empty">${camArea||SIM?'Niente in questa categoria nella zona scaricata.':'Avvia la guida o scarica i dati della zona dalle Opzioni.'}</div>`}
+   <p class="note">Lo stato «attivo/spento» parte dai dati OpenStreetMap (dispositivi marcati come dismessi) e lo puoi correggere tu. L'elenco ufficiale dei dispositivi autorizzati è sul portale del Ministero: <a href="https://velox.mit.gov.it/dispositivi" target="_blank" rel="noopener">velox.mit.gov.it/dispositivi</a>.</p>`);
+  document.querySelectorAll('.tabs [data-f]').forEach(b=>b.onclick=()=>{listFilter=b.dataset.f;sheetList()});
+  document.querySelectorAll('.row[data-id]').forEach(r=>r.onclick=()=>itemActions(r.dataset.id))}
+function itemActions(id){const o=allCams().find(c=>c.id===id)||allTuts().find(t=>t.id===id);if(!o)return;const s=stat(o);const isT=!!o.A;
+  openSheet(`<h2>${esc(isT?(o.name||'Tutor'):kindName(o))}</h2><p class="sub">${o.limit?'Limite '+o.limit+' km/h · ':''}${o.src==='user'?'Segnalato da te':'Fonte OpenStreetMap'}${isT?' · '+fmtKm(o.len)+(o.exact?'':' (stimata)'):''}</p>
+   <h3>Stato</h3><div class="seg">${[['attivo','Attivo'],['dismesso','Spento'],['sconosciuto','Da verificare']].map(([k,l])=>`<button data-s="${k}" class="${s===k?'sel':''}">${l}</button>`).join('')}</div>
+   ${OVR[id]?'<p class="sub">Stato modificato da te. <button class="btn" id="iReset" style="min-height:34px">Ripristina</button></p>':''}
+   <button class="btn wide" id="iMap">Mostra sulla mappa</button>${o.src==='user'?'<button class="btn wide" id="iDel" style="color:#ff6b6f">Elimina segnalazione</button>':''}<button class="btn wide" id="iBack">Indietro</button>`);
+  document.querySelectorAll('.seg [data-s]').forEach(b=>b.onclick=()=>{OVR[id]=b.dataset.s;if(OVR[id]===o.status)delete OVR[id];save('snt_ovr',OVR);drawData();setStatus();itemActions(id)});
+  const rs=$('#iReset');if(rs)rs.onclick=()=>{delete OVR[id];save('snt_ovr',OVR);drawData();itemActions(id)};
+  $('#iMap').onclick=()=>{follow=false;closeSheet();map.setView(isT?o.A:[o.lat,o.lon],16)};$('#iBack').onclick=sheetList;
+  const dl=$('#iDel');if(dl)dl.onclick=()=>{USER.cams=USER.cams.filter(c=>c.id!==id);USER.tutors=USER.tutors.filter(t=>t.id!==id);saveUser();drawData();sheetList()}}
+$('#bList').onclick=sheetList;
+
+// Segnala
+$('#bReport').onclick=()=>{openSheet(`<h2>Segnala qui</h2><p class="sub">${pos?'Alla tua posizione attuale, nella tua direzione di marcia.':'Serve il GPS attivo: premi Avvia.'}</p>
+  <button class="btn pri wide" data-r="fixed">Autovelox fisso</button><button class="btn wide" data-r="mobile" style="background:#1f4f86">Controllo mobile / pattuglia (4 ore)</button>
+  <button class="btn amb wide" data-r="tutor">${ACT&&ACT.manual?'Fine tutor manuale qui':'Inizio tutor qui (registra la tratta)'}</button>
+  <p class="note">Le segnalazioni restano sul tuo telefono e vengono usate per gli avvisi come quelle ufficiali.</p>`);
+  document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{if(!pos){toast('Serve prima il GPS');return}const k=b.dataset.r;
+    if(k==='tutor'){closeSheet();ACT&&ACT.manual?endTutor('manuale'):startManual();return}
+    USER.cams.push({id:'u'+Date.now(),lat:pos.lat,lon:pos.lon,kind:k,limit:(cur.lim&&cur.lim.v)||null,dir:hd,status:'attivo',src:'user',name:'',exp:k==='mobile'?Date.now()+4*3600e3:null});
+    saveUser();drawData();closeSheet();toast(k==='mobile'?'Controllo mobile segnalato':'Autovelox salvato')})};
+
+// Storico
+function sheetHist(){const tot=HIST.length,over=HIST.filter(h=>h.L&&h.ex>0).length;
+  openSheet(`<h2>Storico tutor</h2><p class="sub">${tot?`${tot} passaggi · ${over} con media oltre soglia stimata`:'Ancora nessun passaggio registrato.'}</p>
+   ${HIST.slice(0,100).map((h,i)=>`<div class="row" data-h="${i}"><div class="mi" style="background:${!h.L?'#2b333b':h.ex>0?'#e3262b':'#1f7a45'};color:#fff">${Math.round(h.avg)}</div>
+   <div class="rt"><div class="r1">${esc(h.name)}</div><div class="r2">${fmtD(h.ts)} · ${fmtKm(h.len)} · ${fmtT(h.secs)}${h.L?' · limite '+h.L:''}${h.partial?' · parziale':''}</div></div><div class="rd">${h.L?(h.ex>0?'+'+h.ex:'ok'):''}</div></div>`).join('')}
+   ${tot?'<button class="btn wide" id="hShare">Condividi / copia lo storico</button><button class="btn wide" id="hClear" style="color:#ff6b6f">Cancella storico</button>':''}
+   <p class="note">Il tutor reale misura tempi e distanza ufficiale della tratta: questi valori, calcolati dal GPS del telefono, sono una stima utile per un confronto, non una prova.</p>`);
+  document.querySelectorAll('[data-h]').forEach(r=>r.onclick=()=>{const h=HIST[+r.dataset.h];openSheet(`<h2>${esc(h.name)}</h2><p class="sub">${fmtD(h.ts)} · velocità massima ${h.maxV||'–'} km/h</p>
+    <div style="display:flex;gap:16px;align-items:baseline;margin:10px 0"><b class="cond" style="font-size:60px;line-height:1">${Math.round(h.avg)}</b><span class="sub">km/h di media</span></div>${resultTable(h,h.L?band(h.ex):null)}<button class="btn wide" id="hb">Indietro</button>`);$('#hb').onclick=sheetHist});
+  const sh=$('#hShare');if(sh)sh.onclick=async()=>{const txt='Sentinella · storico tutor\n'+HIST.map(h=>`${fmtD(h.ts)} | ${h.name} | ${(h.len/1000).toFixed(2)} km | ${fmtT(h.secs)} | media ${h.avg} km/h | limite ${h.L||'n.d.'}${h.partial?' | parziale':''}`).join('\n');
+    try{if(navigator.share){await navigator.share({title:'Storico tutor',text:txt});return}}catch(e){if(e&&e.name==='AbortError')return}
+    try{await navigator.clipboard.writeText(txt);toast('Storico copiato')}catch(e){toast('Copia non riuscita')}};
+  const cl=$('#hClear');if(cl)cl.onclick=()=>{if(cl.dataset.ok){HIST=[];save('snt_hist',HIST);sheetHist()}else{cl.dataset.ok=1;cl.textContent='Tocca ancora per confermare'}}}
+$('#bHist').onclick=sheetHist;
+
+// Opzioni
+function sheetSet(){const t=(k,l,s)=>`<label class="tog"><div>${l}<small>${s}</small></div><input type="checkbox" class="sw" data-k="${k}" ${S[k]?'checked':''}></label>`;
+  openSheet(`<h2>Opzioni</h2>
+   ${t('rain','Pioggia o neve','Autostrade 110, strade extraurbane principali 90.')}
+   ${t('neo','Neopatentato','Primi 3 anni: autostrade 100, extraurbane principali 90, punti doppi.')}
+   ${t('voice','Avvisi vocali','Voce italiana per velox, tutor e limiti.')}
+   ${t('camVoice','Annuncia ogni autovelox','Se spento, solo segnale acustico.')}
+   ${t('beep','Segnali acustici','Bip brevi agli avvisi.')}
+   ${t('showOff','Mostra dispositivi spenti','Visualizzati in grigio, senza avvisi.')}
+   ${t('mapDark','Mappa scura','Meno abbagliante di notte.')}
+   <h3>Tipo di mappa</h3><div class="seg">${[['esri','Stradale'],['osm','OpenStreetMap'],['sat','Satellite']].map(([k,l])=>`<button data-map="${k}" class="${S.mapSrc===k?'sel':''}">${l}</button>`).join('')}</div>
+   <h3>Avviso superamento limite: +<span id="vMar">${S.margin}</span> km/h</h3><input type="range" min="0" max="10" step="1" value="${S.margin}" data-r="margin">
+   <h3>Anticipo avvisi autovelox: <span id="vLead">${S.lead}</span> secondi</h3><input type="range" min="10" max="40" step="5" value="${S.lead}" data-r="lead">
+   <h3>Dati per l'uso offline</h3><p class="sub">${camArea?`Zona scaricata ${fmtD(camTs)}, raggio ${camArea.r} km.`:'Nessuna zona scaricata.'}</p>
+   <div class="seg">${[25,50,80].map(r=>`<button data-dl="${r}">Scarica ${r} km</button>`).join('')}</div>
+   <button class="btn wide" id="sSim">Avvia simulazione di prova</button>
+   <button class="btn wide" id="sClear">Svuota dati scaricati</button>
+   <p class="note">Fonti: OpenStreetMap via Overpass API (autovelox, tutor, limiti), mappe Esri o OpenStreetMap. Sanzioni secondo l'art. 142 CdS in vigore (importi 2026 invariati); tolleranza 5% con minimo 5 km/h. È in discussione un nuovo Codice con multe «a chilometro»: quando entrerà in vigore questi importi andranno aggiornati.</p>`);
+  document.querySelectorAll('[data-k]').forEach(i=>i.onchange=()=>{S[i.dataset.k]=i.checked;save('snt_set',S);if(i.dataset.k==='mapDark')setTiles();if(i.dataset.k==='showOff')drawData();if((i.dataset.k==='rain'||i.dataset.k==='neo')&&ACT&&!ACT.manual&&ACT.t.limit)ACT.L=adjTutorLimit(ACT.t.limit);if(pos)renderHud()});
+  document.querySelectorAll('[data-r]').forEach(i=>i.oninput=()=>{S[i.dataset.r]=+i.value;save('snt_set',S);$('#vMar').textContent=S.margin;$('#vLead').textContent=S.lead});
+  document.querySelectorAll('[data-map]').forEach(b=>b.onclick=()=>{S.mapSrc=b.dataset.map;save('snt_set',S);setTiles.tried=[];setTiles();sheetSet()});
+  document.querySelectorAll('[data-dl]').forEach(b=>b.onclick=()=>{if(!pos){toast('Serve prima il GPS');return}closeSheet();loadCams(true,+b.dataset.dl)});
+  $('#sSim').onclick=()=>{closeSheet();prime();startSim()};
+  $('#sClear').onclick=()=>{try{localStorage.removeItem('snt_areas')}catch(e){}camArea=null;CAMS=[];TUTS=[];drawData();setStatus();toast('Dati svuotati')}}
+$('#bSet').onclick=sheetSet;
+
+/* ================= simulazione ================= */
+function startSim(){if(driving)stop();
+  const base=pos?[pos.lat,pos.lon]:[41.4930,13.8290];
+  const g=[base];let b=318;for(let s=100;s<=15500;s+=100){b=318+10*Math.sin(s/3500);const l=g[g.length-1];g.push(dest(l[0],l[1],b,100))}
+  const P=prep(g);
+  const cut=10200;const iCut=P.cum.findIndex(c=>c>=cut);
+  const mk=(id,gg,ms,nm)=>({id,t:{highway:'motorway',maxspeed:String(ms),oneway:'yes',ref:'A1',name:nm},hw:'motorway',oneway:true,rev:false,name:nm,ref:'A1',P:prep(gg)});
+  WAYS=[mk(1,g.slice(0,iCut+1),130,'Autostrada del Sole (simulazione)'),mk(2,g.slice(iCut),90,'Cantiere (simulazione)')];
+  const tA=pointAt(P,1500),tB=pointAt(P,8600);const TP=prep(slicePath(P,1500,8600));
+  TUTS=[{id:'simT',name:'Tutor A1 · tratta di prova',A:[tA.lat,tA.lon],B:[tB.lat,tB.lon],P:TP,len:TP.len,exact:true,limit:130,status:'attivo',bidir:false,src:'osm'}];
+  const c1=pointAt(P,11700),c2=pointAt(P,13600),c3=pointAt(P,14800);
+  CAMS=[{id:'simC1',lat:c1.lat,lon:c1.lon,kind:'fixed',limit:90,dir:c1.b,status:'attivo',src:'osm',name:'Autovelox cantiere km 11,7'},
+        {id:'simC2',lat:c2.lat,lon:c2.lon,kind:'mobile',limit:null,dir:c2.b,status:'attivo',src:'osm',name:'Pattuglia segnalata'},
+        {id:'simC3',lat:c3.lat,lon:c3.lon,kind:'fixed',limit:90,dir:c3.b,status:'dismesso',src:'osm',name:'Autovelox spento (censimento)'}];
+  camArea={lat:base[0],lon:base[1],r:20,ts:Date.now()};camTs=Date.now();drawData();
+  const v=s=>s<600?40+s/600*85:s<2000?125:s<5300?148:s<8600?110:s<10000?122:s<11200?96:s<12200?86:s<13400?104:108;
+  let s=0,t=Date.now();lastPos=null;pos=null;hd=null;follow=true;
+  SIM=setInterval(()=>{s+=v(s)/3.6*3;t+=3000;if(s>=P.len-50){stopSim();toast('Simulazione terminata');return}
+    const p=pointAt(P,s);onFix({lat:p.lat,lon:p.lon,acc:5,spd:v(s)/3.6,hd:p.b,t})},1000);
+  setDriveBtn();setStatus();toast('Simulazione: 3 secondi ogni secondo')}
+function stopSim(){if(!SIM)return;clearInterval(SIM);SIM=null;if(ACT){ACT=null;document.body.classList.remove('tactive');$('#tutor').classList.add('hidden');layAct.clearLayers()}
+  CAMS=[];TUTS=[];WAYS=[];camArea=null;wayCenter=null;cur={way:null,lim:null};announced.clear();approachSaid.clear();cool.clear();drawData();setDriveBtn();$('#alert').className='alert card hidden';setStatus()}
+
+/* ================= avvio ================= */
+if(location.hash==='#sim'){/* utile per test */}
+if('serviceWorker' in navigator&&location.protocol==='https:')navigator.serviceWorker.register('sw.js').catch(()=>{});
+const areas=load('snt_areas',[]);if(areas[0])map.setView([areas[0].lat,areas[0].lon],12);
+window.__snt={procCams,get ACT(){return ACT},get HIST(){return HIST},get cur(){return cur},startSim,stopSim};
+}
+</script>
+</body>
+</html>

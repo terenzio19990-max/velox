@@ -1,0 +1,24 @@
+SENTINELLA – Autovelox, Tutor, Limiti (web app per iPhone)
+
+COME METTERLA SUL TELEFONO (5 minuti, gratis)
+Safari concede il GPS solo a pagine in HTTPS, quindi la cartella va pubblicata online:
+
+1. Dal PC apri https://app.netlify.com/drop (account gratuito).
+2. Trascina dentro la pagina l'intera cartella "sentinella" (scompattata).
+3. Netlify ti dà un indirizzo tipo https://nome-a-caso.netlify.app — aprilo in Safari sull'iPhone.
+4. Condividi → "Aggiungi alla schermata Home". Da lì si apre a tutto schermo come un'app.
+5. Al primo avvio consenti la posizione ("Durante l'uso" + "Posizione esatta").
+
+In alternativa: GitHub Pages, Cloudflare Pages o qualsiasi hosting HTTPS.
+
+USO
+- "Avvia la guida": GPS, schermo sempre acceso, voce. Tieni l'app in primo piano.
+- "Prova la simulazione": un tragitto finto con tutor, autovelox e cantiere per vedere tutto senza muoverti.
+- Tutor man.: avvia/termina a mano una tratta; salvandola verrà riconosciuta da sola le volte successive.
+- Elenco: autovelox e tutor vicini, con stato attivo/spento modificabile.
+- Storico: tutte le tratte tutor percorse, con media, tempo ed esito stimato.
+- Opzioni: pioggia, neopatentato, voce, margine avvisi, download dati per l'offline.
+
+DATI
+OpenStreetMap (Overpass API) per autovelox, tutor e limiti; mappe Esri / OpenStreetMap. Copertura buona ma non
+perfetta: i cartelli stradali prevalgono sempre. Elenco ufficiale dispositivi: velox.mit.gov.it/dispositivi
