@@ -38,7 +38,7 @@ const Guard = App.Guard = (()=>{
   /* ---------- limiti ---------- */
   const CLS_FALL={motorway:130,trunk:90,primary:90,secondary:90,tertiary:70,unclassified:50,residential:50,service_other:30,service:30,living_street:20};
   function adjLim(v,cls){if(!v)return v;const hw=cls==='motorway';const tr=cls==='trunk';
-    if(S.rain){if(hw)v=Math.min(v,110);else if(tr&&v>90)v=Math.min(v,90)}
+    if(S.rain||App.state.wet){if(hw)v=Math.min(v,110);else if(tr&&v>90)v=Math.min(v,90)}
     if(S.neo){if(hw)v=Math.min(v,100);else if(tr)v=Math.min(v,90)}return v}
   let L={v:null,est:false,road:'',cls:''},locBusy=false,locAt=0,locPos=null;
   async function freeLimit(f,hd){if(locBusy)return;const moved=locPos?G.dist(locPos.lat,locPos.lon,f.lat,f.lon):1e9;

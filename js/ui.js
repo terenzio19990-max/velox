@@ -40,6 +40,17 @@ const UI = App.UI = (()=>{
         <button class="fav" id="hFavAdd"><span class="fi" style="background:var(--fill);color:var(--accent)"><svg><use href="#i-plus"/></svg></span><span>Aggiungi</span><small>&nbsp;</small></button></div>
       <div class="sec"><h3>Trova nelle vicinanze</h3></div>
       <div class="cats">${App.CATS.slice(0,12).map(c=>`<button class="cat" data-cat="${c.k}"><span class="ci" style="background:${c.c}">${App.catIcon(c)}</span>${esc(c.l)}</button>`).join('')}</div>
+      <div class="sec"><h3>In viaggio</h3></div>
+      <div class="quick">
+        <button id="qWx"><span class="qi" style="background:linear-gradient(160deg,#4FA3FF,#1E6FD9)">${App.Weather&&App.Weather.cur&&App.Weather.cur.current?App.Weather.icon(App.Weather.cur.current.weather_code,App.Weather.cur.current.is_day,32):'<svg><use href="#i-globe"/></svg>'}</span>${App.Weather&&App.Weather.cur&&App.Weather.cur.current?`<b class="qv">${Math.round(App.Weather.cur.current.temperature_2m)}°</b>`:'Meteo'}</button>
+        <button id="qLive"><span class="qi" style="background:linear-gradient(160deg,#34C759,#1E9E45)"><svg viewBox="0 0 24 24"><circle cx="12" cy="10" r="3" fill="#fff"/><path d="M12 21s-7-6-7-11a7 7 0 0114 0c0 5-7 11-7 11z" fill="none" stroke="#fff" stroke-width="2"/></svg>${App.Live&&App.Live.sharing?'<i class="dotlive"></i>':''}</span>Posizione live</button>
+        <button id="qConv"><span class="qi" style="background:linear-gradient(160deg,#FF2D55,#C81E4A)"><svg viewBox="0 0 24 24"><path d="M7 4l4 10-4-2-4 2zM17 8l4 10-4-2-4 2z" fill="#fff"/></svg>${App.Convoy&&App.Convoy.active?'<i class="dotlive" style="background:var(--green)"></i>':''}</span>Carovana</button>
+        <button id="qMus"><span class="qi" style="background:linear-gradient(160deg,#FF5E7E,#A33BF2)"><svg viewBox="0 0 24 24"><path d="M9 18V6l10-2v12" fill="none" stroke="#fff" stroke-width="2"/><circle cx="7" cy="18" r="2.5" fill="#fff"/><circle cx="17" cy="16" r="2.5" fill="#fff"/></svg></span>Musica</button>
+        <button id="qFun"><span class="qi" style="background:linear-gradient(160deg,#A78BFA,#7C3AED)"><svg viewBox="0 0 24 24"><path d="M6 21c0-4 6-4 6-8.5S6 8 6 3M18 21c0-4-6-4-6-8.5S18 8 18 3" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round"/></svg></span>Strade da guidare</button>
+        <button id="qRep"><span class="qi" style="background:linear-gradient(160deg,#FFB340,#FF8A00)"><svg><use href="#i-alert"/></svg></span>Segnala</button>
+        <button id="qStage"><span class="qi" style="background:linear-gradient(160deg,#5E5CE6,#3634A3)"><svg><use href="#i-clock"/></svg></span>Prove a tempo</button>
+        <button id="qMark"><span class="qi" style="background:linear-gradient(160deg,#F5C542,#D4A017)"><svg viewBox="0 0 24 24"><path d="M3 19l6-8 4 5 2.5-3L21 19z" fill="#fff"/><circle cx="17" cy="7" r="2" fill="#fff"/></svg></span>${App.Roads&&App.Roads.recording?'Fine tratto':'Tratto bello'}</button>
+      </div>
       <div class="sec"><h3>Guida</h3></div>
       <div class="group">
         ${item({attr:'id="hDrive"',color:App.state.driving?'var(--red)':'var(--green)',icon:'<svg><use href="#i-car"/></svg>',t1:App.state.driving?'Termina la guida':'Avvia la guida',t2:App.state.driving?'Autovelox, tutor e limiti attivi':'Autovelox, tutor e limiti senza destinazione',chev:true})}
@@ -59,6 +70,7 @@ const UI = App.UI = (()=>{
         r.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>openPlace(recents[+b.dataset.rec]));
         const rc=$('#hRecClear');if(rc)rc.onclick=()=>{recents=[];Store.set('recents',recents);render()};
         $('#hDrive').onclick=()=>{App.toggleDrive();render()};$('#hTutor').onclick=()=>{Guard.act?Guard.end('manuale'):Guard.startManual();render()};
+        $('#qWx').onclick=()=>show('weather');$('#qLive').onclick=()=>show('live');$('#qConv').onclick=()=>show('convoy');$('#qMus').onclick=()=>show('music');$('#qFun').onclick=()=>show('funroads');$('#qRep').onclick=()=>show('report');$('#qStage').onclick=()=>show('stages');$('#qMark').onclick=()=>{App.Roads.markToggle();render()};
         $('#hReport').onclick=()=>show('report');const ht=$('#hTrips');if(ht)ht.onclick=()=>show('trips');$('#hCams').onclick=()=>show('cams');$('#hHist').onclick=()=>show('hist');
         $('#hPark').onclick=()=>{const pk=Store.get('park',null);if(pk)openPlace({name:'La tua auto',type:'Parcheggio',addr:'Salvato '+F.date(pk.ts),lat:pk.lat,lon:pk.lon,cat:'parking',isCar:true});else savePark()}}}};
   function savePark(){const f=App.state.fix;if(!f){App.toast('Serve la posizione per salvare il parcheggio');return}Store.set('park',{lat:f.lat,lon:f.lon,ts:Date.now()});App.toast('Parcheggio salvato');Voice.buzz(15);render()}
@@ -136,6 +148,7 @@ const UI = App.UI = (()=>{
         <button class="act" id="pFav"><svg><use href="#${isFav?'i-star':'i-star-o'}"/></svg>${isFav?'Salvato':'Salva'}</button>
         <button class="act" id="pShare"><svg><use href="#i-share"/></svg>Condividi</button>
       </div>
+      <div id="pLive"></div>
       <div class="group" id="pInfo">${p.addr?`<div class="kv"><span>Indirizzo</span><b>${esc(p.addr)}</b></div>`:''}<div class="kv"><span>Coordinate</span><b>${p.lat.toFixed(5)}, ${p.lon.toFixed(5)}</b></div></div>
       <div id="pTags"></div>
       ${p.isCar?'<button class="btn wide" id="pClearPark" style="margin-top:12px;color:var(--red)">Elimina il parcheggio salvato</button>':''}`,
@@ -146,9 +159,10 @@ const UI = App.UI = (()=>{
         $('#pShare').onclick=()=>share(p.name,`${p.name}${p.addr?' — '+p.addr:''}\nhttps://www.openstreetmap.org/?mlat=${p.lat.toFixed(6)}&mlon=${p.lon.toFixed(6)}#map=18/${p.lat.toFixed(5)}/${p.lon.toFixed(5)}`);
         const cp=$('#pClearPark');if(cp)cp.onclick=()=>{Store.del('park');selPin(null);home()};
         // tempo di guida stimato
+        App.emit('placeOpen',{p});
         const f=App.state.fix;if(f&&!p.isCar){API.route([{lat:f.lat,lon:f.lon},{lat:p.lat,lon:p.lon}],{}).then(r=>{const e=$('#pEta');if(e&&r[0])e.textContent=F.dur(r[0].time)}).catch(()=>{})}
         // dettagli da OSM
-        let tags=p.tags&&Object.keys(p.tags).length>2?p.tags:null;if(!tags&&p.osm)tags=await API.osmTags(p.osm);if(!tags)return;
+        let tags=p.tags&&Object.keys(p.tags).length>2?p.tags:null;if(!tags&&p.osm)tags=await API.osmTags(p.osm);if(!tags){App.emit('placeTags',{p,tags:{}});return}
         const rows=[];const add=(l,v)=>v&&rows.push(`<div class="kv"><span>${l}</span><b>${v}</b></div>`);
         if(tags.brand&&tags.brand!==p.name)add('Marchio',esc(tags.brand));
         if(tags.opening_hours)add('Orari',esc(fmtHours(tags.opening_hours,true)).replace(/\n/g,'<br>'));
@@ -160,7 +174,8 @@ const UI = App.UI = (()=>{
         const sockets=Object.keys(tags).filter(k=>/^socket:[^:]+$/.test(k)).map(k=>k.slice(7).replace('type2','Tipo 2').replace('_combo',' CCS').replace('chademo','CHAdeMO')+(isFinite(+tags[k])?' ×'+tags[k]:''));
         if(sockets.length)add('Prese',esc(sockets.join(', ')));if(tags.capacity)add('Posti',esc(tags.capacity));if(tags.fee)add('A pagamento',tags.fee==='no'?'No':'Sì');
         if(tags.cuisine)add('Cucina',esc(tags.cuisine.replace(/_/g,' ').replace(/;/g,', ')));if(tags.stars)add('Stelle',esc(tags.stars));if(tags.wheelchair)add('Accessibile',tags.wheelchair==='yes'?'Sì':tags.wheelchair==='limited'?'In parte':'No');
-        if(rows.length)$('#pTags').innerHTML=`<div class="group" style="margin-top:12px">${rows.join('')}</div>`}}};
+        if(rows.length)$('#pTags').innerHTML=`<div class="group" style="margin-top:12px">${rows.join('')}</div>`;
+        App.emit('placeTags',{p,tags})}}};
   async function share(title,text){try{if(navigator.share){await navigator.share({title,text});return}}catch(e){if(e&&e.name==='AbortError')return}try{await navigator.clipboard.writeText(text);App.toast('Copiato negli appunti')}catch(e){App.toast('Condivisione non disponibile')}}
   App.on('longPress',async ll=>{const p={name:'Punto sulla mappa',type:'Segnaposto',addr:'',lat:ll.lat,lon:ll.lng};openPlace(p);try{const r=await API.reverse(ll.lat,ll.lng);if(r&&cur.name==='place'&&cur.arg.p===p){p.addr=[r.name!==r.addr?r.name:'',r.addr].filter(Boolean).join(', ');p.name=r.name&&r.name!=='Luogo'?r.name:'Punto sulla mappa';render()}}catch(e){}});
 
@@ -184,7 +199,7 @@ const UI = App.UI = (()=>{
     box.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{Plan.removeStop(+b.dataset.del);if(Plan.st.stops.length<2){home();Plan.clearMap();return}render();Plan.compute()})}
   function renderOpts(){const box=$('#plOpts');if(!box)return;const v=App.vehicle();
     box.innerHTML=`<button class="chip" id="oVeh"><svg><use href="#i-car"/></svg>${esc(v.name)}</button>
-      <button class="chip ${S.avoidTolls?'on':''}" data-o="avoidTolls">Evita pedaggi</button><button class="chip ${S.avoidHighways?'on':''}" data-o="avoidHighways">Evita autostrade</button><button class="chip ${S.avoidFerries?'on':''}" data-o="avoidFerries">Evita traghetti</button>`;
+      <button class="chip ${S.avoidTolls?'on':''}" data-o="avoidTolls">Evita pedaggi</button><button class="chip ${S.avoidHighways?'on':''}" data-o="avoidHighways">Evita autostrade</button><button class="chip ${S.avoidFerries?'on':''}" data-o="avoidFerries">Evita traghetti</button><button class="chip ${S.funRoute?'on':''}" data-o="funRoute" style="${S.funRoute?'background:#7C3AED':''}">Percorso divertente</button>`;
     box.querySelectorAll('[data-o]').forEach(b=>b.onclick=()=>{S[b.dataset.o]=!S[b.dataset.o];App.saveS();renderOpts();Plan.compute()});
     $('#oVeh').onclick=()=>pickVehicle(()=>{renderOpts();Plan.st.routes.forEach(r=>r.cost=Plan.cost(r));renderPlanBody()})}
   // conteggio autovelox e tutor sul percorso
@@ -222,13 +237,14 @@ const UI = App.UI = (()=>{
         ${tile('Autovelox',g.nCam,'sul percorso')}${tile('Tutor',g.nTut,'tratte')}${tile('Autostrada',F.km(c.hwKm*1000),Math.round(c.hwKm*1000/r.dist*100)+'% del viaggio')}${tile('CO₂',F.n(c.co2,1)+' kg','stimata')}</div>
       ${tips.length?`<div class="sec"><h3>Consigli</h3></div><div class="group">${tips.map(t=>`<div class="item" style="align-items:flex-start"><span class="ic" style="background:${t[0]}">${t[1]}</span><span class="tx"><span class="t1" style="display:block;white-space:normal;font-weight:600">${t[2]}</span><span class="t2" style="display:block;white-space:normal">${t[3]}</span></span></div>`).join('')}</div>`:''}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px"><button class="btn big" id="plItin">Pianifica il viaggio</button><button class="btn green big" id="plGo">Vai</button></div>
-      <button class="btn wide" id="plSim" style="margin-top:8px">Simula il percorso</button>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px"><button class="btn" id="plCop" style="color:#7C3AED">Copilota</button><button class="btn" id="plSim">Simula il percorso</button></div>
       <div class="sec"><h3>Lungo il percorso</h3></div>
       <div class="chips">${['fuel','charge','services','food','cafe','parking','hotel'].map(k=>{const cc=catById(k);return `<button class="chip" data-along="${k}"><span style="color:${cc.c};display:flex">${App.catIcon(cc,16,cc.c)}</span>${esc(cc.l)}</button>`}).join('')}</div>
+      <div id="plExtra"></div>
       <p class="note">Tempi senza traffico in tempo reale. Pedaggi stimati con la tariffa media di ${F.n(App.TOLL[v.cls]*100,1)} € ogni 100 km (classe ${v.cls}): l'importo reale può variare del 10–15%.</p>`;
-    bindCommon(b);$('#plItin').onclick=()=>{planTab='itin';scr.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x.dataset.tab==='itin'));renderPlanBody();scroller.scrollTop=0}}
+    bindCommon(b);App.emit('planBody',{route:r,box:$('#plExtra')});$('#plItin').onclick=()=>{planTab='itin';scr.querySelectorAll('[data-tab]').forEach(x=>x.classList.toggle('on',x.dataset.tab==='itin'));renderPlanBody();scroller.scrollTop=0}}
   function bindCommon(b){b.querySelectorAll('[data-r]').forEach(x=>x.onclick=()=>{Plan.select(+x.dataset.r)});
-    const go=$('#plGo');if(go)go.onclick=startNav;const sim=$('#plSim');if(sim)sim.onclick=()=>{App.state.simReady=true;const r=Plan.route;startNav();App.simulate(r)};
+    const go=$('#plGo');if(go)go.onclick=startNav;const cop=$('#plCop');if(cop)cop.onclick=()=>{App.state.wantCopilot=true;startNav()};const sim=$('#plSim');if(sim)sim.onclick=()=>{App.state.simReady=true;const r=Plan.route;startNav();App.simulate(r)};
     b.querySelectorAll('[data-along]').forEach(x=>x.onclick=()=>show('results',{cat:x.dataset.along,along:true}))}
   function renderItin(b){const st=Plan.st;const r=Plan.route;const v=App.vehicle();const n=st.stops.length;
     // tempi e costi per tratto
@@ -284,15 +300,19 @@ const UI = App.UI = (()=>{
   /* ---------- PANNELLO NAVIGAZIONE ---------- */
   R.nav=()=>({peek:100,detent:'peek',html:`<div class="navbar"><div class="nb-eta"><b id="nbEta">--:--</b><div class="nb-sub" id="nbSub">–</div></div><button class="nb-end" id="nbEnd">Fine</button></div>
       <div style="margin-top:16px" class="actions"><button class="act" id="nbMute"><svg><use href="#${Nav.muted?'i-mute':'i-volume'}"/></svg>${Nav.muted?'Riattiva':'Silenzia'}</button><button class="act" id="nbShare"><svg><use href="#i-share"/></svg>Arrivo</button><button class="act" id="nbRep"><svg><use href="#i-alert"/></svg>Segnala</button><button class="act" id="nbOv"><svg><use href="#i-route"/></svg>Panoramica</button></div>
+      <div class="chips" style="margin-top:-4px"><button class="chip ${App.Copilot&&App.Copilot.on?'on':''}" id="nbCop" style="${App.Copilot&&App.Copilot.on?'background:#7C3AED':''}">Copilota</button><button class="chip" id="nbMus">Musica</button><button class="chip ${App.Live&&App.Live.sharing?'on':''}" id="nbLive">Posizione live</button><button class="chip" id="nbConv">Carovana</button><button class="chip ${App.Roads&&App.Roads.recording?'on':''}" id="nbMark">Tratto bello</button></div>
       <div class="sec" style="margin-top:6px"><h3>Fermati lungo il percorso</h3></div>
       <div class="chips">${['fuel','charge','services','food','cafe','parking','toilets'].map(k=>{const c=catById(k);return `<button class="chip" data-along="${k}"><span style="color:${c.c};display:flex">${App.catIcon(c,16,c.c)}</span>${esc(c.l)}</button>`}).join('')}</div>
+      <div id="nbExtra"></div>
       <div class="sec"><h3>Prossime indicazioni</h3></div><div class="group" id="nbSteps"></div>
       <div class="sec"><h3>Costo stimato</h3></div><div class="group" id="nbCost"></div>`,
     bind(){$('#nbEnd').onclick=async()=>{if(await App.confirm('Terminare la navigazione?','','Termina',true)){App.stopSim&&App.stopSim();Nav.stop();home()}};
       $('#nbMute').onclick=()=>{Nav.toggleMute();render()};
       $('#nbShare').onclick=()=>{const r=Nav.rem;const d=Plan.st.stops[Plan.st.stops.length-1];const f=App.state.fix;share('Arrivo previsto',`Arrivo previsto alle ${r?F.clock(r.eta):'--'} a ${d.name}.${f?`\nSono qui: https://www.openstreetmap.org/?mlat=${f.lat.toFixed(5)}&mlon=${f.lon.toFixed(5)}`:''}`)};
+      $('#nbCop').onclick=()=>{App.Copilot.on?App.Roads.copStop(false):App.Roads.copStart();render()};$('#nbMus').onclick=()=>show('music');$('#nbLive').onclick=()=>show('live');$('#nbConv').onclick=()=>show('convoy');$('#nbMark').onclick=()=>{App.Roads.markToggle();render()};
       $('#nbRep').onclick=()=>show('report');$('#nbOv').onclick=()=>{MapView.setCam('free');Plan.fitRoutes();App.toast('La guida riprende da sola tra pochi secondi')};
       scr.querySelectorAll('[data-along]').forEach(x=>x.onclick=()=>show('results',{cat:x.dataset.along,along:true}));
+      App.emit('navPanel',{box:$('#nbExtra')});
       if(!Nav.route)return;const c=Nav.route.cost||Plan.cost(Nav.route);
       $('#nbCost').innerHTML=`<div class="kv"><span>Carburante</span><b>${F.eur(c.fuel)}</b></div><div class="kv"><span>Pedaggi</span><b>${c.tollKm?F.eur(c.toll):'Nessuno'}</b></div><div class="kv"><span>Totale</span><b style="font-weight:700">${F.eur(c.total)}</b></div>`;
       navTick()}});
@@ -405,30 +425,41 @@ const UI = App.UI = (()=>{
   R.settings=()=>{const t=(k,l,s)=>`<div class="field"><label>${l}${s?`<small>${s}</small>`:''}</label><input type="checkbox" class="sw" data-k="${k}" ${S[k]?'checked':''}></div>`;const v=App.vehicle();
     return {detent:'full',html:`${hdr('Impostazioni')}
       <div class="group">${item({attr:'id="stVeh"',color:'var(--accent)',icon:'<svg><use href="#i-car"/></svg>',t1:esc(v.name),t2:'Auto, consumi e prezzi carburante',chev:true})}</div>
+      <div class="group" style="margin-top:10px"><div class="field"><label>Il tuo nome<small>Per posizione live, carovana e segnalazioni</small></label><input type="text" id="stName" value="${esc(S.myName||'')}" placeholder="facoltativo" maxlength="24"></div></div>
       <div class="sec"><h3>Autovelox e tutor</h3></div>
       <div class="group">${t('rain','Pioggia o neve','Autostrade 110, superstrade 90')}${t('neo','Neopatentato','Autostrade 100, superstrade 90, punti doppi')}${t('camVoice','Annuncia gli autovelox','A voce, con distanza e limite')}${t('showOff','Mostra i dispositivi spenti','In grigio, senza avvisi')}
         <div class="field" style="flex-direction:column;align-items:stretch;padding:12px"><label>Avviso superamento limite: +<span id="vMar">${S.margin}</span> km/h</label><input type="range" min="0" max="10" step="1" value="${S.margin}" data-r="margin"></div>
         <div class="field" style="flex-direction:column;align-items:stretch;padding:12px"><label>Anticipo avvisi autovelox: <span id="vLead">${S.lead}</span> secondi</label><input type="range" min="10" max="40" step="5" value="${S.lead}" data-r="lead"></div></div>
+      <div class="sec"><h3>Avvisi sulla strada</h3></div>
+      <div class="group">${t('hzCurves','Curve pericolose','Calcolate dalla forma del percorso')}${t('hzBumps','Dossi e rallentatori','')}${t('hzRail','Passaggi a livello','')}${t('hzRough','Strade dissestate e sterrate','')}${t('hzSignals','Annuncia i semafori','Solo sopra i 40 km/h')}${t('hzScenic','Panorami e belvedere','')}${t('hzReports','Segnalazioni della community','Traffico, polizia, buche, incidenti')}${t('wxRoute','Meteo sul percorso','Pioggia, neve, nebbia all\'ora del passaggio')}${t('autoRain','Pioggia automatica','Limiti ridotti quando piove davvero')}</div>
+      <div class="sec"><h3>Community</h3></div>
+      <div class="group">${t('community','Condividi le segnalazioni','Gli altri utenti vedono buche, traffico e polizia che segnali tu, e tu le loro')}</div>
+      <div class="sec"><h3>Copilota</h3></div>
+      <div class="group">${t('copiVoice','Note vocali sulle curve','Stile rally: direzione, grado da 1 a 6, distanze')}<div class="field" style="flex-direction:column;align-items:stretch;padding:12px"><label>Velocità della voce: <span id="vCs">${F.n(S.copiSpeed||1.12,2)}</span></label><input type="range" min="0.9" max="1.5" step="0.02" value="${S.copiSpeed||1.12}" data-r="copiSpeed"></div></div>
       <div class="sec"><h3>Voce e suoni</h3></div>
       <div class="group">${t('voice','Indicazioni vocali','')}${t('beep','Segnali acustici','')}</div>
       <div class="sec"><h3>Percorsi</h3></div>
-      <div class="group">${t('avoidTolls','Evita pedaggi','')}${t('avoidHighways','Evita autostrade','')}${t('avoidFerries','Evita traghetti','')}</div>
+      <div class="group">${t('avoidTolls','Evita pedaggi','')}${t('avoidHighways','Evita autostrade','')}${t('avoidFerries','Evita traghetti','')}${t('funRoute','Percorso divertente','Niente autostrade, sceglie la strada con più curve')}</div>
       <div class="sec"><h3>Mappa</h3></div>
       <div class="group"><div class="field"><label>Aspetto</label><div class="seg" style="width:60%">${[['auto','Auto'],['light','Chiaro'],['dark','Scuro']].map(([k,l])=>`<button data-th="${k}" class="${S.theme===k?'on':''}">${l}</button>`).join('')}</div></div>${t('buildings3d','Edifici in 3D','Inclina la mappa con due dita')}</div>
       <div class="sec"><h3>Traffico in tempo reale</h3></div>
       <div class="group"><div class="field"><label>Chiave TomTom<small>Gratuita su developer.tomtom.com</small></label><input type="password" id="stTT" value="${esc(S.tomtomKey||'')}" placeholder="facoltativa" autocomplete="off"></div>${t('traffic','Mostra il traffico','Strade colorate per velocità')}</div>
       <div class="group" style="margin-top:8px">${item({attr:'id="stTTg"',color:'#DF1B12',icon:'<b style="font-size:13px">TT</b>',t1:'Come ottenere la chiave gratuita',t2:'5 minuti, nessun costo',chev:true})}</div>
       <p class="note">Senza chiave i tempi di percorrenza sono senza traffico in tempo reale. Con la chiave vedi il traffico colorato sulla mappa.</p>
+      <div class="sec"><h3>Recensioni e foto</h3></div>
+      <div class="group"><div class="field"><label>Chiave Google Places<small>Facoltativa: voto, recensioni e foto nelle schede</small></label><input type="password" id="stGK" value="${esc(S.googleKey||'')}" placeholder="facoltativa" autocomplete="off"></div></div>
+      <p class="note">Crea la chiave su console.cloud.google.com con «Places API (New)» attiva, limitala al tuo sito GitHub. Google offre ogni mese una quota gratuita; oltre, è a pagamento. Senza chiave trovi orari, contatti e i link alle recensioni.</p>
       <div class="sec"><h3>Dati</h3></div>
       <div class="group"><div class="kv"><span>Autovelox</span><b>${Guard.info.n.toLocaleString('it-IT')} · ${esc(Guard.info.date)}</b></div><div class="kv"><span>Tratte tutor</span><b>${Guard.info.t}${Guard.info.tdate?' · '+esc(Guard.info.tdate):''}</b></div>
         ${item({attr:'id="stUpd"',color:'#34C759',icon:'<svg><use href="#i-camera"/></svg>',t1:'Aggiorna la zona da OpenStreetMap',t2:'Raggio 30 km, può richiedere un minuto'})}
         ${item({attr:'id="stDemo"',color:'#5856D6',icon:'<svg><use href="#i-route"/></svg>',t1:'Viaggio di prova',t2:'Simula Cassino → Frosinone sulla A1',chev:true})}</div>
       <p class="note">Mappa © OpenFreeMap e contributori OpenStreetMap. Percorsi: Valhalla su server FOSSGIS. Ricerca: Photon (komoot). Elenco tutor: Polizia di Stato / Autostrade per l'Italia. Sanzioni: art. 142 CdS in vigore, importi 2026; tolleranza 5% con minimo 5 km/h.</p>`,
       bind(r){$('#stVeh').onclick=()=>show('vehicles');
-        r.querySelectorAll('[data-k]').forEach(i=>i.onchange=()=>{S[i.dataset.k]=i.checked;App.saveS();const k=i.dataset.k;if(k==='buildings3d')MapView.restyle();if(k==='showOff')Guard.publish();if(k==='traffic')App.applyTraffic();if(/^avoid/.test(k)&&Plan.st.routes.length)Plan.compute()});
-        r.querySelectorAll('[data-r]').forEach(i=>i.oninput=()=>{S[i.dataset.r]=+i.value;App.saveS();$('#vMar').textContent=S.margin;$('#vLead').textContent=S.lead});
+        r.querySelectorAll('[data-k]').forEach(i=>i.onchange=()=>{S[i.dataset.k]=i.checked;App.saveS();const k=i.dataset.k;App.emit('settings',k);if(k==='funRoute'&&Plan.st.routes.length)Plan.compute();if(k==='hzReports'||k==='hzScenic')App.Roads&&App.Roads.publish();if(k==='buildings3d')MapView.restyle();if(k==='showOff')Guard.publish();if(k==='traffic')App.applyTraffic();if(/^avoid/.test(k)&&Plan.st.routes.length)Plan.compute()});
+        r.querySelectorAll('[data-r]').forEach(i=>i.oninput=()=>{S[i.dataset.r]=+i.value;App.saveS();$('#vMar').textContent=S.margin;$('#vLead').textContent=S.lead;$('#vCs').textContent=F.n(S.copiSpeed,2)});
         r.querySelectorAll('[data-th]').forEach(b=>b.onclick=()=>{S.theme=b.dataset.th;App.saveS();App.applyTheme();MapView.restyle();render()});
         $('#stTT').onchange=e=>{S.tomtomKey=e.target.value.trim();App.saveS();App.applyTraffic()};$('#stTTg').onclick=()=>show('ttGuide');
+        $('#stGK').onchange=e=>{S.googleKey=e.target.value.trim();App.saveS()};$('#stName').onchange=e=>{S.myName=e.target.value.trim().slice(0,24);App.saveS()};
         $('#stUpd').onclick=async()=>{const me=myPos();if(!me)return;App.toast('Scarico i dati della zona…',60000);try{const n=await Guard.refreshArea(me.lat,me.lon);App.toast(`Aggiornati: ${n} autovelox nella zona`)}catch(e){App.toast('Server OpenStreetMap occupato, riprova tra qualche minuto')}};
         $('#stDemo').onclick=()=>App.demo()}}};
 
@@ -469,5 +500,5 @@ const UI = App.UI = (()=>{
       m.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=b.dataset.m;if(k==='sat')S.mapType='sat';else{S.mapType='std';S.theme=k==='dark'?'dark':'light'}App.saveS();App.applyTheme();MapView.restyle();close()});
       const g=m.querySelector('#lTTg');if(g)g.onclick=e=>{e.preventDefault();close();show('ttGuide')};m.querySelector('#l3d').onchange=e=>{S.buildings3d=e.target.checked;App.saveS();MapView.restyle()};m.querySelector('#lTr').onchange=e=>{S.traffic=e.target.checked;App.saveS();App.applyTraffic()};m.querySelector('[data-x]').onclick=close})});
 
-  return {show,back,home,render,openPlace,get cur(){return cur}};
+  return {show,back,home,render,openPlace,get cur(){return cur},R,hdr,item,share,myPos,distTxt,fmtHours,placeIcon,selPin,clearPois,openPlan,startNav,get favs(){return favs}};
 })();

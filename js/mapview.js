@@ -3,7 +3,7 @@
 const MapView = App.Map = (()=>{
   const OFM='https://tiles.openfreemap.org/styles/liberty';
   let baseStyle=null,map=null,ready=false;
-  const data={cams:{type:'FeatureCollection',features:[]},tuts:{type:'FeatureCollection',features:[]},route:{type:'FeatureCollection',features:[]},alts:{type:'FeatureCollection',features:[]},pois:{type:'FeatureCollection',features:[]},tutAct:{type:'FeatureCollection',features:[]}};
+  const data={cams:{type:'FeatureCollection',features:[]},tuts:{type:'FeatureCollection',features:[]},route:{type:'FeatureCollection',features:[]},routeHead:{type:'FeatureCollection',features:[]},alts:{type:'FeatureCollection',features:[]},pois:{type:'FeatureCollection',features:[]},tutAct:{type:'FeatureCollection',features:[]}};
 
   /* ---------- stile ---------- */
   const DARK={background:'#121417',water:'#0E2233',waterway:'#16354D',park:'#132219',wood:'#122019',grass:'#141f17',residential:'#16191E',landuse:'#17191d',building:'#1F242B',b3d:'#262C34',
@@ -74,12 +74,15 @@ const MapView = App.Map = (()=>{
   /* ---------- livelli ---------- */
   function addLayers(){ensureImages();const dark=App.isDark();
     const src=(id)=>{if(!map.getSource(id))map.addSource(id,{type:'geojson',data:data[id]})};
-    ['alts','route','tuts','tutAct','cams','pois'].forEach(src);
+    ['alts','route','routeHead','tuts','tutAct','cams','pois'].forEach(src);
     const before=map.getLayer('highway-name-path')?'highway-name-path':undefined;
     map.addLayer({id:'alts-case',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':dark?'#2b2b2e':'#fff','line-width':['interpolate',['linear'],['zoom'],8,6,16,14]}},before);
     map.addLayer({id:'alts-line',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':dark?'#5E6E85':'#9DB4D6','line-width':['interpolate',['linear'],['zoom'],8,3.5,16,9]}},before);
     map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':dark?'#0A2A55':'#0A4FB0','line-width':['interpolate',['linear'],['zoom'],8,7,16,16]}},before);
     map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':['case',['==',['get','k'],'toll'],dark?'#3FA0FF':'#1E8BFF','#0A84FF'],'line-width':['interpolate',['linear'],['zoom'],8,4.5,16,11]}},before);
+    // tratto tra la freccia e il resto del percorso: ridisegnato a ogni fotogramma, così la linea parte sempre dalla freccia
+    map.addLayer({id:'rhead-case',type:'line',source:'routeHead',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':dark?'#0A2A55':'#0A4FB0','line-width':['interpolate',['linear'],['zoom'],8,7,16,16]}},before);
+    map.addLayer({id:'rhead-line',type:'line',source:'routeHead',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#0A84FF','line-width':['interpolate',['linear'],['zoom'],8,4.5,16,11]}},before);
     map.addLayer({id:'route-done',type:'line',source:'route',filter:['==',['get','k'],'done'],layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':dark?'#3a3a3c':'#B8C2CF','line-width':['interpolate',['linear'],['zoom'],8,4.5,16,11]}},before);
     map.addLayer({id:'tuts-line',type:'line',source:'tuts',minzoom:7,layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#FF9500','line-opacity':['case',['get','off'],0.3,0.85],'line-width':['interpolate',['linear'],['zoom'],7,2,15,6],'line-dasharray':[2,1.2]}});
     map.addLayer({id:'tutAct-line',type:'line',source:'tutAct',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#FF9500','line-width':['interpolate',['linear'],['zoom'],7,4,15,10],'line-opacity':0.9}});
@@ -94,42 +97,67 @@ const MapView = App.Map = (()=>{
   }
   function setData(id,fc){data[id]=fc;if(map&&map.getSource(id))map.getSource(id).setData(fc)}
 
-  /* ---------- posizione e camera ---------- */
-  let puck=null,puckEl=null,disp=null,dispHd=0,camMode='free',lastFrame=0,userTouch=0,zoomS=16,navPitch=55;
+  /* ---------- posizione e camera ----------
+     La mappa segue la posizione solo quando l'utente non la tocca: durante un gesto (trascinare, pizzicare,
+     ruotare, rotella) la camera non viene mai riposizionata, così i gesti non vengono interrotti.
+     A fine gesto: se la posizione è stata spostata lontano dal centro si passa a «libera», altrimenti
+     si resta in modalità segui adottando lo zoom scelto dall'utente. */
+  let puck=null,puckEl=null,disp=null,dispHd=0,camMode='free',prevMode='follow',lastFrame=0,freeSince=0,zoomS=16,navPitch=55,navZoomOff=0;
+  let touching=0,wheelT=0,gestRot=false,gestPan=false,lastBr=null;
   function makePuck(){puckEl=document.createElement('div');puckEl.className='puck';
     puckEl.innerHTML='<div class="halo"></div><div class="cone"></div><div class="dot"></div><svg class="arrow" viewBox="0 0 48 48"><defs><filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".4"/></filter></defs><path d="M24 5l14 34-14-8-14 8z" fill="#0A84FF" stroke="#fff" stroke-width="3" stroke-linejoin="round" filter="url(#sh)"/></svg>';
     puck=new maplibregl.Marker({element:puckEl,rotationAlignment:'map',pitchAlignment:'map'}).setLngLat([0,0])}
   function padFor(m){const H=innerHeight,vis=Sheet.visible();return m==='nav'?{top:Math.round(H*0.42),bottom:Math.max(40,Math.min(vis,H*0.35)),left:0,right:0}:{top:0,bottom:Math.max(0,Math.min(vis,H*0.6)),left:0,right:0}}
-  function setCam(m){camMode=m;const b=$('#cLocate');if(b)b.innerHTML=`<svg><use href="#${m==='heading'?'i-heading':m==='follow'?'i-locate-on':'i-locate'}"/></svg>`;
+  // zoom con pizzico/rotella/doppio tocco attorno al centro quando si segue la posizione, attorno al dito quando la mappa è libera
+  function setAround(){if(!map)return;const c=camMode!=='free'?{around:'center'}:undefined;
+    map.touchZoomRotate.enable(c);map.scrollZoom.enable(c);map.touchZoomRotate.enableRotation()}
+  function setCam(m){if(m!=='free')prevMode=m;else if(camMode!=='free')freeSince=performance.now();
+    camMode=m;navZoomOff=m==='nav'?navZoomOff:0;
+    const b=$('#cLocate');if(b){b.innerHTML=`<svg><use href="#${m==='heading'?'i-heading':m==='follow'?'i-locate-on':'i-locate'}"/></svg>`;b.classList.toggle('on',m!=='free')}
     puckEl&&puckEl.classList.toggle('nav',m==='nav');
     if(!map){App.emit('cam',m);return}
+    setAround();
     const f=App.state.fix;const o={padding:padFor(m),duration:600};
     if(m==='nav')Object.assign(o,{pitch:navPitch});
     else if(m==='follow')Object.assign(o,{bearing:0,pitch:0},map.getZoom()<12?{zoom:15.5}:{});
-    else if(m==='heading')Object.assign(o,{pitch:45},map.getZoom()<12?{zoom:16}:{});
-    if(m!=='free'){if(f)o.center=[f.lon,f.lat];App.state.mapBusy=true;clearTimeout(setCam.t);setCam.t=setTimeout(()=>{App.state.mapBusy=false},650);map.easeTo(o)}
+    else if(m==='heading')Object.assign(o,{pitch:45},map.getZoom()<12?{zoom:16}:{},dispHd!=null?{bearing:dispHd}:{});
+    if(m!=='free'){if(f){o.center=[(disp||f).lon,(disp||f).lat]}busy(650);map.easeTo(o)}
     App.emit('cam',m)}
-  function updatePadding(){if(!map||App.state.mapBusy)return;map.setPadding(padFor(camMode==='nav'?'nav':'x'))}
+  function busy(ms){App.state.mapBusy=true;clearTimeout(busy.t);busy.t=setTimeout(()=>{App.state.mapBusy=false},ms)}
+  function updatePadding(){if(!map||App.state.mapBusy||touching)return;map.setPadding(padFor(camMode==='nav'?'nav':'x'))}
   function zoomFor(spd){const k=(spd||0)*3.6;return camMode==='nav'?(k>100?15.2:k>70?15.8:k>40?16.4:17.1):(k>90?14.5:k>50?15.5:16.2)}
-  function frame(t){requestAnimationFrame(frame);const f=App.state.fix;if(!f||!map)return;const dt=Math.min(0.1,(t-lastFrame)/1000||0.016);lastFrame=t;
+  const gesturing=()=>touching>0||performance.now()-wheelT<350;
+  // fine gesto: decido se restare agganciato alla posizione
+  function gestureEnd(){if(!map||camMode==='free'||!disp){gestRot=gestPan=false;return}
+    const p=map.project([disp.lon,disp.lat]),c=map.getCanvas(),pad=map.getPadding();
+    const cx=(c.clientWidth+pad.left-pad.right)/2,cy=(c.clientHeight+pad.top-pad.bottom)/2;
+    const off=Math.hypot(p.x-cx,p.y-cy);
+    if((gestPan&&off>70)||(gestRot&&camMode!=='follow')){setCam('free');App.emit('userPan')}
+    else{if(camMode==='nav')navZoomOff=Math.max(-3,Math.min(2.5,map.getZoom()-zoomS));
+      busy(320);map.easeTo({center:[disp.lon,disp.lat],duration:300})}
+    gestRot=gestPan=false}
+  function frame(t){requestAnimationFrame(frame);if(!map)return;
+    const cb=$('#cCompass');if(cb){const br=map.getBearing();const show=Math.abs(br)>1.5&&!App.state.navigating;
+      cb.classList.toggle('hidden',!show);if(show&&br!==lastBr){cb.firstElementChild.style.transform=`rotate(${-br}deg)`;lastBr=br}}
+    const f=App.state.fix;if(!f)return;const dt=Math.min(0.1,(t-lastFrame)/1000||0.016);lastFrame=t;
     // previsione tra un fix e l'altro: niente scatti
     let plat=f.lat,plon=f.lon;const hd=App.state.hd;
-    if(f.spd>1.2&&hd!=null){const ah=Math.min(1.3,(performance.now()-f.recv)/1000);const p=G.dest(f.lat,f.lon,hd,f.spd*ah);plat=p[0];plon=p[1]}
+    if(f.spd>1.2&&hd!=null&&App.state.hdSrc==='gps'){const ah=Math.min(1.3,(performance.now()-f.recv)/1000);const p=G.dest(f.lat,f.lon,hd,f.spd*ah);plat=p[0];plon=p[1]}
     if(!disp||G.dist(disp.lat,disp.lon,plat,plon)>400){disp={lat:plat,lon:plon};dispHd=hd||0}
     const k=1-Math.exp(-dt/0.16);disp.lat+=(plat-disp.lat)*k;disp.lon+=(plon-disp.lon)*k;
-    if(hd!=null)dispHd=(dispHd+G.sdiff(dispHd,hd)*(1-Math.exp(-dt/0.22))+360)%360;
+    if(hd!=null)dispHd=(dispHd+G.sdiff(dispHd,hd)*(1-Math.exp(-dt/(App.state.hdSrc==='compass'?0.3:0.22)))+360)%360;
     puck.setLngLat([disp.lon,disp.lat]);puck.setRotation(dispHd);
-    puckEl.style.setProperty('--cone',hd!=null&&f.spd>0.8?1:0);
-    const pxPerM=map.getZoom()>3?(1/ (156543.03*Math.cos(G.rad(disp.lat))/2**map.getZoom())):0;
+    if(App.state.navigating&&App.Nav.drawHead&&t-(frame.hT||0)>45){frame.hT=t;App.Nav.drawHead(disp)}
+    puckEl.style.setProperty('--cone',hd!=null&&(f.spd>0.8||App.state.hdSrc==='compass')?1:0);
+    const pxPerM=map.getZoom()>3?(1/(156543.03*Math.cos(G.rad(disp.lat))/2**map.getZoom())):0;
     puckEl.style.setProperty('--acc',Math.max(24,Math.min(300,(f.acc||20)*2*pxPerM))+'px');
-    if(camMode!=='free'&&!App.state.mapBusy){const zt=zoomFor(f.spd);zoomS+=(zt-zoomS)*(1-Math.exp(-dt/1.2));
+    if(camMode!=='free'&&!App.state.mapBusy&&!gesturing()&&!map.isMoving()){
       const o={center:[disp.lon,disp.lat]};
-      if(camMode==='heading'||camMode==='nav')o.bearing=dispHd;
-      if(camMode==='nav'){o.zoom=zoomS;o.pitch=navPitch}
+      if(camMode==='heading'||camMode==='nav'){const br=map.getBearing();if(Math.abs(G.sdiff(br,dispHd))>0.3)o.bearing=dispHd}
+      if(camMode==='nav'){const zt=zoomFor(f.spd);zoomS+=(zt-zoomS)*(1-Math.exp(-dt/1.2));o.zoom=Math.max(3,Math.min(19,zoomS+navZoomOff));o.pitch=navPitch}
       map.jumpTo(o)}
-    // ripresa automatica in navigazione
-    if(camMode==='free'&&App.state.navigating&&userTouch&&performance.now()-userTouch>9000){userTouch=0;setCam('nav')}
-    const cb=$('#cCompass');if(cb){const br=map.getBearing();cb.classList.toggle('hidden',Math.abs(br)<2||App.state.navigating);cb.firstElementChild.style.transform=`rotate(${-br}deg)`}}
+    // ripresa automatica in guida e in navigazione dopo 10 s senza tocchi
+    if(camMode==='free'&&(App.state.navigating||App.state.driving)&&freeSince&&!gesturing()&&performance.now()-freeSince>10000){freeSince=0;setCam(App.state.navigating?'nav':prevMode==='nav'?'heading':prevMode)}}
 
   /* ---------- avvio ---------- */
   async function init(center){await loadBase();
@@ -137,10 +165,18 @@ const MapView = App.Map = (()=>{
     map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
     map.touchZoomRotate.enableRotation();
     makePuck();
+    // tocchi letti prima di MapLibre: durante un gesto la camera non si muove da sola
+    const cont=map.getCanvasContainer();
+    const tch=e=>{touching=e.touches?e.touches.length:0;if(touching){if(camMode==='free')freeSince=performance.now()}else gestureEnd()};
+    cont.addEventListener('touchstart',tch,{passive:true,capture:true});cont.addEventListener('touchend',tch,{passive:true,capture:true});cont.addEventListener('touchcancel',tch,{passive:true,capture:true});
+    cont.addEventListener('mousedown',()=>{touching=1;const up=()=>{touching=0;removeEventListener('mouseup',up);gestureEnd()};addEventListener('mouseup',up)},{capture:true});
+    cont.addEventListener('wheel',()=>{wheelT=performance.now();clearTimeout(wheelT.t);wheelT.t=setTimeout(gestureEnd,360)},{passive:true,capture:true});
+    map.on('load',()=>{const a=document.querySelector('.maplibregl-ctrl-attrib');if(a){a.classList.remove('maplibregl-compact-show');a.removeAttribute('open')}});
     map.on('style.load',()=>{addLayers();ready=true;App.emit('mapReady')});
     map.on('styleimagemissing',e=>{if(/^snt-/.test(e.id))ensureImages()});
-    const userMove=e=>{if(e.originalEvent){userTouch=performance.now();if(camMode!=='free'){setCam('free');App.emit('userPan')}}};
-    map.on('dragstart',userMove);map.on('rotatestart',userMove);map.on('pitchstart',userMove);map.on('zoomstart',e=>{if(e.originalEvent&&camMode==='nav'){userTouch=performance.now()}});
+    map.on('dragstart',e=>{if(e.originalEvent)gestPan=true});
+    map.on('rotatestart',e=>{if(e.originalEvent)gestRot=true});
+    map.on('movestart',e=>{if(e.originalEvent&&camMode==='free')freeSince=performance.now()});
     map.on('error',e=>{if(!baseStyle&&/openfreemap|openstreetmap/.test(String(e.error&&e.error.message)))console.warn(e)});
     // pressione prolungata = segnaposto
     let lpT=0,lpPos=null;
@@ -148,16 +184,16 @@ const MapView = App.Map = (()=>{
     map.on('touchmove',e=>{if(lpPos&&(Math.abs(e.point.x-lpPos.x)>8||Math.abs(e.point.y-lpPos.y)>8))clearTimeout(lpT)});
     map.on('touchend',()=>clearTimeout(lpT));map.on('touchcancel',()=>clearTimeout(lpT));
     map.on('contextmenu',e=>App.emit('longPress',e.lngLat));
-    Sheet.onMove(vis=>{document.documentElement.style.setProperty('--attrib-b',Math.min(vis,innerHeight*0.6)+'px');if(camMode!=='free')updatePadding()});
+    Sheet.onMove(()=>{if(camMode!=='free')updatePadding()});
     requestAnimationFrame(frame);
-    $('#cLocate').onclick=()=>{if(!App.state.fix){App.emit('needGps');return}setCam(camMode==='follow'?'heading':'follow');if(!puck._map)puck.addTo(map)};
-    $('#cCompass').onclick=()=>map.easeTo({bearing:0,pitch:0,duration:400});
+    $('#cLocate').onclick=()=>{App.Compass&&App.Compass.ask();if(!App.state.fix){App.emit('needGps');return}setCam(camMode==='follow'?'heading':'follow');if(!puck._map)puck.addTo(map)};
+    $('#cCompass').onclick=()=>{App.Compass&&App.Compass.ask();if(camMode==='heading'||camMode==='nav')setCam('follow');else{busy(450);map.easeTo({bearing:0,pitch:0,duration:400})}};
     $('#cLayers').onclick=()=>App.emit('layers');
     App.on('theme',restyle);
   }
   function restyle(){if(!map)return;ready=false;map.setStyle(buildStyle(),{diff:false})}
   function showPuck(){if(puck&&!puck._map)puck.addTo(map)}
-  function fit(bounds,opt={}){const H=innerHeight,vis=Sheet.visible();map.fitBounds(bounds,Object.assign({padding:{top:Math.max(70,H*0.08),bottom:Math.min(vis,H*0.62)+30,left:40,right:40},duration:700,maxZoom:16},opt))}
+  function fit(bounds,opt={}){setCam('free');const H=innerHeight,vis=Sheet.visible();map.fitBounds(bounds,Object.assign({padding:{top:Math.max(70,H*0.08),bottom:Math.min(vis,H*0.62)+30,left:40,right:40},duration:700,maxZoom:16},opt))}
   function flyTo(lat,lon,z=15.5){map.easeTo({center:[lon,lat],zoom:Math.max(map.getZoom(),z),duration:700})}
-  return {init,restyle,setData,setCam,get cam(){return camMode},showPuck,fit,flyTo,get map(){return map},updatePadding,get disp(){return disp}};
+  return {init,restyle,setData,setCam,get ready(){return ready&&!!map&&!!map.style},get cam(){return camMode},showPuck,fit,flyTo,get map(){return map},updatePadding,get disp(){return disp}};
 })();

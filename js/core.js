@@ -59,7 +59,10 @@ const DEF = {
   theme:'auto', mapType:'std', buildings3d:true, voice:true, beep:true, camVoice:true,
   neo:false, rain:false, margin:3, lead:20, showOff:false,
   avoidTolls:false, avoidHighways:false, avoidFerries:false,
-  vehicle:'v1', people:1, timeValue:0, tomtomKey:'', traffic:false, onboarded:false
+  vehicle:'v1', people:1, timeValue:0, tomtomKey:'', traffic:false, onboarded:false,
+  myName:'', googleKey:'', spClient:'', amToken:'', autoRain:true, community:true,
+  hzSignals:false, hzBumps:true, hzRail:true, hzRough:true, hzCurves:true, hzScenic:true, hzReports:true, wxRoute:true,
+  copiVoice:true, copiSpeed:1.12, funRoute:false, shareLiveNav:false
 };
 App.S = Object.assign({}, DEF, Store.get('set',{}));
 App.saveS = ()=>Store.set('set',App.S);

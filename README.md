@@ -12,6 +12,16 @@ Navigatore per telefono con **autovelox, tutor e costo del viaggio**. È una web
 - **Punti di interesse**: benzinai (con carburanti e orari), colonnine, ristoranti, bar, parcheggi, supermercati, farmacie, ospedali, hotel, bancomat, officine, aree di servizio e altro, vicino a te o **lungo il percorso**.
 - Ricerca di indirizzi e luoghi, preferiti (Casa, Lavoro), recenti, segnaposto con pressione prolungata, parcheggio salvato, condivisione dell'orario di arrivo.
 - Mappa vettoriale con edifici 3D, tema chiaro, scuro e satellite. Funziona anche con connessione scarsa grazie alla cache.
+- **Schede dei luoghi complete**: aperto/chiuso adesso con gli orari della settimana, telefono, sito, Wikipedia e meteo sul posto. Con la chiave Google Places (facoltativa) anche voto, recensioni e foto.
+- **Meteo dal vivo** (Open-Meteo): condizioni attuali, pioggia nelle prossime 2 ore, prossime ore e giorni. **Meteo sul percorso all'ora in cui passi**: pioggia, neve, nebbia, ghiaccio, temporali, vento. Con pioggia vera applica da solo i limiti ridotti.
+- **Incidenti e code** in tempo reale con la chiave TomTom (gratuita), sulla mappa e lungo il percorso, con il ritardo stimato.
+- **La strada**: dossi, semafori, passaggi a livello, strade dissestate o sterrate, pericoli segnalati (OpenStreetMap); **curve pericolose** calcolate dalla forma del percorso con la velocità consigliata; belvedere e strade panoramiche.
+- **Copilota** da A a B per una guida più sportiva: note vocali in stile rally (direzione, grado 1–6, «lunga», «si stringe», distanze), accelerazione laterale, cronometro con record per percorso. **Percorso divertente** e **Strade da guidare** vicino a te, classificate per quantità di curve.
+- **Posizione live**: link da mandare su WhatsApp, chi lo apre ti vede muovere; si ferma da solo all'arrivo o dopo il tempo scelto.
+- **Carovana**: più auto con un codice, posizioni sulla mappa, chi è davanti o dietro, messaggi rapidi letti a voce, destinazione comune.
+- **Segnalazioni stile Waze**: traffico, polizia, incidenti, pericoli, buche, strade dissestate, dossi, strade chiuse; le vedono anche gli altri utenti di Sentinella in zona, con «Grazie» e «Non c'è più». Puoi registrare i **tratti belli** (panoramici o da guidare).
+- **Musica**: Spotify (telecomando dell'app, account Premium e Client ID gratuito) e Apple Music (apertura rapida, oppure riproduzione dentro l'app con token sviluppatore).
+- Animazioni in stile Waze: faro sulla mappa oscurata con scheda dall'alto, fumetti che saltano fuori dai marcatori, «Sei qui» toccando la tua posizione.
 
 ## Pubblicarla su GitHub Pages (5 minuti)
 
@@ -31,6 +41,10 @@ Quando l'elenco ufficiale dei tutor cambia, aggiorna `tools/tutor-ufficiali.csv`
 
 I servizi gratuiti di percorso non hanno il traffico in tempo reale. Se vuoi vederlo sulla mappa crea una chiave gratuita su developer.tomtom.com e incollala in *Impostazioni → Traffico in tempo reale*.
 
+## Collegamenti tra telefoni (posizione live, carovana, segnalazioni)
+
+Non serve un server tuo: Sentinella usa broker MQTT pubblici e gratuiti (HiveMQ, con EMQX e Mosquitto di riserva). Posizione live e carovana viaggiano **cifrate** (AES-GCM): la chiave sta nel link o deriva dal codice della carovana, il server vede solo byte illeggibili. Le segnalazioni della community invece sono pubbliche per chi passa nella zona. I broker pubblici non garantiscono il servizio: se uno non risponde l'app passa al successivo.
+
 ## Limiti da conoscere
 
 - Su iPhone il GPS funziona solo con l'app **aperta in primo piano**: lo schermo resta acceso da solo durante la guida.
@@ -40,6 +54,6 @@ I servizi gratuiti di percorso non hanno il traffico in tempo reale. Se vuoi ved
 
 ## Fonti
 
-Mappa © OpenFreeMap e contributori OpenStreetMap · Percorsi: Valhalla su server FOSSGIS · Ricerca: Photon (komoot) · Punti di interesse: Overpass API · Satellite: Esri · Elenco tutor: Polizia di Stato / Autostrade per l'Italia · Prezzi carburante: medie MIMIT.
+Mappa © OpenFreeMap e contributori OpenStreetMap · Meteo: Open-Meteo · Traffico: TomTom (facoltativo) · Recensioni: Google Places (facoltativo) · Percorsi: Valhalla su server FOSSGIS · Ricerca: Photon (komoot) · Punti di interesse: Overpass API · Satellite: Esri · Elenco tutor: Polizia di Stato / Autostrade per l'Italia · Prezzi carburante: medie MIMIT.
 
 Nessun dato personale lascia il telefono: preferiti, storico e impostazioni restano nella memoria del browser.

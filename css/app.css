@@ -43,10 +43,14 @@ a{color:var(--accent);text-decoration:none}
 /* HUD */
 .hud{position:fixed;z-index:15;left:calc(var(--sl) + 12px);top:calc(var(--st) + 12px);display:flex;flex-direction:column;align-items:center;gap:8px;transition:opacity .2s,transform .25s var(--ease-out)}
 .hud.off{opacity:0;transform:translateY(-6px);pointer-events:none}
-.limit{width:62px;height:62px;border-radius:50%;background:#fff;border:7px solid #E1251B;display:grid;place-items:center;box-shadow:var(--shadow-sm);color:#000;transition:transform .2s var(--ease-out)}
-.limit span{font:700 25px/1 var(--font);letter-spacing:-.5px;font-variant-numeric:tabular-nums}
+.limit{width:64px;height:64px;border-radius:50%;flex:none;display:grid;place-items:center;color:#000;overflow:hidden;isolation:isolate;
+  /* cartello disegnato con un gradiente: bordo rosso e fondo bianco sempre perfettamente rotondi, angoli trasparenti */
+  background:radial-gradient(circle closest-side,#fff 0 calc(100% - 9px),#E1251B calc(100% - 8.5px) calc(100% - .6px),rgba(225,37,27,0) 100%);
+  filter:drop-shadow(0 2px 5px rgba(0,0,0,.35));transition:transform .2s var(--ease-out);-webkit-transform:translateZ(0)}
+.limit span{font:700 26px/1 var(--font);letter-spacing:-1px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.limit.d3 span{font-size:21px;letter-spacing:-1.2px}
 .limit.none span{color:#8E8E93;font-size:22px}
-.limit.est{border-color:#E88A85}
+.limit.est{background:radial-gradient(circle closest-side,#fff 0 calc(100% - 9px),#E88A85 calc(100% - 8.5px) calc(100% - .6px),rgba(232,138,133,0) 100%)}
 .limit.over{animation:limitPulse 1.1s ease-in-out infinite}
 @keyframes limitPulse{50%{transform:scale(1.08)}}
 .speedo{min-width:62px;padding:6px 8px 5px;border-radius:14px;text-align:center;display:flex;flex-direction:column}
@@ -60,9 +64,11 @@ a{color:var(--accent);text-decoration:none}
 .ctrl{width:46px;height:46px;display:grid;place-items:center;color:var(--accent);transition:background .15s}
 .ctrl:active{background:var(--fill)}
 .ctrl svg{width:21px;height:21px}
+.ctrl.on{color:var(--accent)}
 .ctrl-sep{height:.5px;background:var(--sep);margin:0 8px}
 .compass{border-radius:50%;color:var(--label2)}
-.compass svg{transition:transform .1s linear}
+.compass{width:44px;height:44px}
+.compass svg{width:26px;height:26px;will-change:transform}
 .ctrls.nav .ctrl-group{display:none}
 
 /* Pannello inferiore */

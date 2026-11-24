@@ -34,7 +34,7 @@ const Nav = App.Nav = (()=>{
     Store.set('lastNav',{stops,ts:Date.now()});drawProgress(true);App.emit('navStart');if(App.state.fix)update(App.state.fix,App.state.hd)}
   function stop(silent){N.active=false;App.state.navigating=false;document.body.classList.remove('navigating');App.state.awake=!!App.state.driving;if(!App.state.driving)App.keepAwake(false);
     $('#navTop').classList.add('hidden');$('#navSide').classList.add('hidden');$('#hud').classList.remove('off');$('#ctrls').classList.remove('nav');
-    MapView.setCam(App.state.fix?'follow':'free');Plan.clearMap();Plan.st.routes=[];rt=null;Store.del('lastNav');if(!silent)Voice.say('Navigazione terminata');App.emit('navEnd')}
+    MapView.setData('routeHead',EMPTY);MapView.setCam(App.state.fix?'follow':'free');Plan.clearMap();Plan.st.routes=[];rt=null;Store.del('lastNav');if(!silent)Voice.say('Navigazione terminata');App.emit('navEnd')}
 
   /* ---------- aggiornamento a ogni posizione ---------- */
   function update(f,hd){if(!N.active||!rt)return;
@@ -65,17 +65,28 @@ const Nav = App.Nav = (()=>{
   function renderMan(m,dist,next,nextGap){$('#manIc').innerHTML=icon(m);const [n,u]=F.kmParts(dist);$('#manD').innerHTML=`${n}<small>${u}</small>`;
     const street=m.begin||m.street||'';$('#manS').textContent=street?street:m.text.replace(/\.$/,'');
     const nx=$('#manNext');if(next&&nextGap!=null&&nextGap<400&&![4,5,6].includes(m.type)){nx.classList.remove('hidden');nx.innerHTML=`Poi ${icon(next)}`}else nx.classList.add('hidden')}
-  function drawProgress(force){lastDraw=Date.now();if(!rt)return;const rest=P.g.slice(Math.max(0,idx)).map(p=>[p[1],p[0]]);if(App.state.fix&&rest.length)rest[0]=[MapView.disp?MapView.disp.lon:App.state.fix.lon,MapView.disp?MapView.disp.lat:App.state.fix.lat];
-    MapView.setData('route',{type:'FeatureCollection',features:[{type:'Feature',geometry:{type:'LineString',coordinates:rest.length>1?rest:P.g.map(p=>[p[1],p[0]])},properties:{k:'main'}}]});if(force)MapView.setData('alts',{type:'FeatureCollection',features:[]})}
+  // linea del percorso: la parte lontana si aggiorna di rado, il tratto vicino parte sempre dalla freccia (drawHead, ogni fotogramma)
+  let j0=0;const EMPTY={type:'FeatureCollection',features:[]};
+  const line=c=>({type:'FeatureCollection',features:c.length>1?[{type:'Feature',geometry:{type:'LineString',coordinates:c},properties:{k:'main'}}]:[]});
+  function drawProgress(force){lastDraw=Date.now();if(!rt)return;
+    if(force||j0<idx+2||j0>idx+600){j0=Math.min(P.g.length-1,G.idxAt(P,along+900)+1);MapView.setData('route',line(P.g.slice(j0).map(p=>[p[1],p[0]])))}
+    if(force)MapView.setData('alts',EMPTY);if(force||!App.state.fix)drawHead(null)}
+  function drawHead(d){if(!rt)return;let c;
+    if(d){const p=G.proj(d.lat,d.lon,P,Math.max(0,idx-8),j0+1);
+      if(p.i>=j0-1){drawProgress(true);return}
+      const s=p.d<25?[d.lon,d.lat]:[P.g[p.i][1]+(P.g[p.i+1][1]-P.g[p.i][1])*p.t,P.g[p.i][0]+(P.g[p.i+1][0]-P.g[p.i][0])*p.t];
+      c=[s].concat(P.g.slice(p.i+1,j0+1).map(q=>[q[1],q[0]]))}
+    else c=P.g.slice(Math.max(0,idx),j0+1).map(q=>[q[1],q[0]]);
+    MapView.setData('routeHead',line(c))}
   async function reroute(f,hd){lastReroute=Date.now();offCnt=0;Voice.say('Ricalcolo il percorso',true);App.toast('Ricalcolo…');
     const remaining=[{lat:f.lat,lon:f.lon,heading:hd,name:'Posizione'}].concat(stopsLeft.slice(legIdx));
     try{let r;try{r=(await API.route(remaining,{avoidTolls:App.S.avoidTolls,avoidHighways:App.S.avoidHighways,avoidFerries:App.S.avoidFerries}))[0]}catch(e){r=(await API.routeOSRM(remaining,{}))[0]}
       r.cost=Plan.cost(r);setup(r,remaining);drawProgress(true);App.emit('navReroute')}
     catch(e){App.toast('Ricalcolo non riuscito, riprovo');lastReroute=Date.now()-4000}}
-  function arrive(){const d=Plan.st.stops[Plan.st.stops.length-1];Voice.beep(2,880);Voice.say('Sei arrivato a destinazione',true);App.toast('Sei arrivato');stop(true);App.emit('arrived',d)}
+  function arrive(){const d=Plan.st.stops[Plan.st.stops.length-1];App.emit('beforeArrive',d);Voice.beep(2,880);Voice.say('Sei arrivato a destinazione',true);App.toast('Sei arrivato');stop(true);App.emit('arrived',d)}
   function limitHere(){if(!lims.length)return null;return Guard.routeLimit(lims,idx)}
   function steps(){if(!rt)return [];const k=rt.man.findIndex((m,i)=>i>0&&manA[i]>along+4);return rt.man.slice(Math.max(1,k)).map((m,j)=>({m,icon:icon(m),dist:manA[Math.max(1,k)+j]-along}))}
-  Object.assign(N,{start,stop,update,limitHere,steps,icon,along:()=>along,toggleMute(){muted=!muted;return muted}});
+  Object.assign(N,{start,stop,update,limitHere,steps,icon,drawHead,along:()=>along,toggleMute(){muted=!muted;return muted}});
   Object.defineProperties(N,{camsOnRoute:{get:()=>camsOnRoute},route:{get:()=>rt},muted:{get:()=>muted}});
   return N;
 })();

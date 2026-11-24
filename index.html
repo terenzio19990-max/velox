@@ -15,6 +15,7 @@
 <link rel="icon" href="img/icon-192.png">
 <link rel="stylesheet" href="js/lib/maplibre-gl.css">
 <link rel="stylesheet" href="css/app.css">
+<link rel="stylesheet" href="css/extra.css">
 </head>
 <body>
 <div id="map" aria-label="Mappa"></div>
@@ -32,6 +33,7 @@
     <span class="ctrl-sep"></span>
     <button class="ctrl" id="cLocate" aria-label="La mia posizione"><svg><use href="#i-locate"/></svg></button>
   </div>
+  <button class="wxchip glass hidden" id="cWx" aria-label="Meteo"></button>
   <button class="ctrl compass glass hidden" id="cCompass" aria-label="Orienta a nord"><svg viewBox="0 0 24 24"><path d="M12 3l3 9h-6z" fill="#FF3B30"/><path d="M12 21l-3-9h6z" fill="currentColor" opacity=".55"/></svg></button>
 </div>
 
@@ -41,6 +43,14 @@
   <div class="al-tx"><div class="al-t1" id="alT1"></div><div class="al-t2" id="alT2"></div></div>
   <div class="al-d" id="alD"></div>
 </div>
+
+<!-- Avvisi più avanti (pericoli, meteo, segnalazioni) -->
+<div class="hz hidden" id="hz" role="status" aria-live="polite"><div class="hz-ic" id="hzIc"></div><div class="hz-tx"><b id="hzT"></b><small id="hzS"></small></div><div class="hz-d" id="hzD"></div></div>
+<!-- Copilota -->
+<div class="copi hidden" id="copi" aria-live="polite"></div>
+<!-- Mini lettore musicale -->
+<div class="mplayer glass hidden" id="mplayer"></div>
+<div class="recdot hidden" id="recdot"><i></i>Registro il tratto · tocca qui per finire</div>
 
 <!-- Navigazione -->
 <div class="nav-top hidden" id="navTop">
@@ -146,6 +156,13 @@
 <script src="js/route.js"></script>
 <script src="js/nav.js"></script>
 <script src="js/ui.js"></script>
+<script src="js/fx.js"></script>
+<script src="js/ahead.js"></script>
+<script src="js/places.js"></script>
+<script src="js/weather.js"></script>
+<script src="js/roads.js"></script>
+<script src="js/live.js"></script>
+<script src="js/music.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
