@@ -229,7 +229,7 @@ const Community = App.Community = (()=>{
     if(S.community&&!S.myName){const n=await People.askName('Comparirà come autore delle tue segnalazioni.');if(!n)return}
     const r={k,la:+f.lat.toFixed(5),lo:+f.lon.toFixed(5),h:App.state.hd!=null?Math.round(App.state.hd):null,t:Date.now(),by:S.myName||'',up:0,dn:0,exp:kd.exp?Date.now()+kd.exp*60e3:null,st:(Guard.limit&&Guard.limit.road)||'',note:note||''};
     r.id=Crypt.b64u.enc(Crypt.rnd(8));r.tile=tileOf(r.la,r.lo);mine.push(r);mine=mine.filter(x=>!x.exp||x.exp>Date.now()).slice(-200);Store.set('myReps',mine);reps.set(r.id,r);draw(r);
-    if(S.community)MQ.publish(T(r.tile,r.id),r,true,true);Voice.buzz(20);App.toast(`${kd.l} segnalato${S.community?' a chi passa di qui':''}`);
+    if(S.community)MQ.publish(T(r.tile,r.id),r,true,true);Voice.buzz(20);App.toast(`Segnalazione inviata: ${kd.l.toLowerCase()}${S.community?'. La vede chi passa di qui':''}`);
     const mk=markers.get(r.id);if(mk){const el=mk.getElement();el.classList.add('fresh');setTimeout(()=>el.classList.remove('fresh'),900)}}
   function vote(id,v){const r=reps.get(id);if(!r)return;if(v>0){r.up=(r.up||0)+1;r.t2=Date.now();if(r.exp)r.exp=Math.max(r.exp,Date.now()+K[r.k].exp*60e3*0.5);App.toast('Grazie! Segnalazione confermata')}else{r.dn=(r.dn||0)+1;App.toast('Grazie, aggiornato')}
     const tile=r.tile||tileOf(r.la,r.lo);if(r.dn>=2||(v<0&&!r.up)){MQ.publish(T(tile,id),null,true,true);drop(id)}else{MQ.publish(T(tile,id),Object.assign({},r,{id:undefined}),true,true);draw(r)}}
@@ -239,8 +239,16 @@ const Community = App.Community = (()=>{
   Ahead.add(ctx=>{if(!S.hzReports)return [];const out=[],{f,hd,nav,along}=ctx;const sp=f.spd||0;
     for(const r of reps.values()){if(r.exp&&Date.now()>r.exp)continue;let d;if(nav){const a=Ahead.onRoute(r.la,r.lo,40);if(a==null)continue;d=a-along;if(d<-15||d>3000)continue}else{d=Ahead.front(f,hd,r.la,r.lo,2000,25);if(d==null)continue;if(r.h!=null&&hd!=null&&G.adiff(r.h,hd)>110)continue}
       const kd=K[r.k];const strong=r.k==='accident'||r.k==='closure'||r.k==='hazard';
-      out.push({id:'r'+r.id,kind:r.k,color:kd.c,icon:FX.glyph(r.k,22),t1:kd.l+' segnalato',t2:`${FX.ago(r.t)}${r.by?' da '+r.by:''}`,d,prio:strong?2:1,showAt:Math.max(700,sp*35),sayAt:r.k==='pothole'||r.k==='bump'?Math.max(150,sp*8):Math.max(500,sp*25),say:`${kd.l} segnalat${/a$/.test(kd.l)?'a':'o'} tra ${F.speakDist(d)}`,tap:()=>tap(r.id)})}
+      out.push({id:'r'+r.id,kind:r.k,color:kd.c,icon:FX.glyph(r.k,22),t1:kd.l,t2:`segnalazione ${FX.ago(r.t)}${r.by?' da '+r.by:''}${r.up?' · confermata':''}`,d,prio:strong?2:1,showAt:Math.max(700,sp*35),sayAt:r.k==='pothole'||r.k==='bump'?Math.max(150,sp*8):Math.max(500,sp*25),say:`${kd.l} segnalat${/a$/.test(kd.l)?'a':'o'} tra ${F.speakDist(d)}`,tap:()=>tap(r.id)})}
     return out});
+  /* passando accanto a una segnalazione chiedo con un tocco se c'è ancora (scompare da sola dopo 12 s) */
+  const asked=new Set(Store.get('askedReps',[]));let askEl=null,askT=0;
+  function ask(r){if(askEl)return;const kd=K[r.k];document.body.insertAdjacentHTML('beforeend',`<div class="ask" id="ask"><span class="ask-ic" style="background:${kd.c}">${FX.glyph(r.k,24)}</span><div class="ask-tx"><b>${esc(kd.l)}: c'è ancora?</b><small>${FX.ago(r.t)}${r.by?' da '+esc(r.by):''}</small></div><button data-v="1" class="ask-y">Sì</button><button data-v="-1" class="ask-n">No</button><i class="ask-bar"></i></div>`);
+    askEl=$('#ask');Voice.beep(1,740);const done=v=>{clearTimeout(askT);if(v)vote(r.id,v);askEl.classList.add('out');const e=askEl;askEl=null;setTimeout(()=>e.remove(),300)};
+    askEl.querySelectorAll('[data-v]').forEach(b=>b.onclick=()=>done(+b.dataset.v));askT=setTimeout(()=>done(0),12000)}
+  App.on('tick',({f})=>{if(!S.community||!S.hzReports||App.state.sim||(f.spd||0)<2||askEl)return;
+    for(const r of reps.values()){if(asked.has(r.id)||mine.some(x=>x.id===r.id)||r.k==='scenic'||r.k==='fun')continue;const d=G.dist(f.lat,f.lon,r.la,r.lo);
+      if(d<70){asked.add(r.id);Store.set('askedReps',[...asked].slice(-300));ask(r);break}}});
   App.on('settings',()=>{if(!S.community){for(const t of tiles){offs.get(t)&&offs.get(t)()}tiles.clear();offs.clear()}else if(lastArea)area(lastArea.lat,lastArea.lon)});
   return {report,publishMark,tap,get count(){return reps.size}};
 })();

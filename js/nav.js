@@ -62,7 +62,7 @@ const Nav = App.Nav = (()=>{
     App.emit('navTick',N.rem);
     if(Date.now()-lastDraw>2500)drawProgress()}
   const lc=s=>s?s.charAt(0).toLowerCase()+s.slice(1):'';
-  function renderMan(m,dist,next,nextGap){$('#manIc').innerHTML=icon(m);const [n,u]=F.kmParts(dist);$('#manD').innerHTML=`${n}<small>${u}</small>`;
+  function renderMan(m,dist,next,nextGap){$('#manIc').innerHTML=icon(m);App.emit('man',{m,dist});const [n,u]=F.kmParts(dist);$('#manD').innerHTML=`${n}<small>${u}</small>`;
     const street=m.begin||m.street||'';$('#manS').textContent=street?street:m.text.replace(/\.$/,'');
     const nx=$('#manNext');if(next&&nextGap!=null&&nextGap<400&&![4,5,6].includes(m.type)){nx.classList.remove('hidden');nx.innerHTML=`Poi ${icon(next)}`}else nx.classList.add('hidden')}
   // linea del percorso: la parte lontana si aggiorna di rado, il tratto vicino parte sempre dalla freccia (drawHead, ogni fotogramma)

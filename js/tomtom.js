@@ -5,8 +5,8 @@
 const TT = App.TT = (()=>{
   const S=App.S,BASE='https://api.tomtom.com';
   // quote gratuite mensili (pagina prezzi TomTom, novembre 2026)
-  const Q={route:20000,range:2500,suggest:10000,details:5000,rev:20000,inc:2500};
-  const LBL={route:'Percorsi con traffico',inc:'Incidenti',suggest:'Ricerca (suggerimenti)',details:'Ricerca (dettagli)',rev:'Nomi delle strade',range:'Fin dove arrivo'};
+  const Q={route:20000,range:2500,suggest:10000,details:5000,rev:20000,inc:2500,tiles:200000};
+  const LBL={route:'Percorsi con traffico',inc:'Incidenti',suggest:'Ricerca (suggerimenti)',details:'Ricerca (dettagli)',rev:'Nomi delle strade',range:'Fin dove arrivo',tiles:'Mappa TomTom e colori del traffico (riquadri)'};
   const month=()=>{const d=new Date();return d.getFullYear()+'-'+(d.getMonth()+1)};
   let U=Store.get('ttUse',{m:month(),c:{}});
   const roll=()=>{if(U.m!==month()){U={m:month(),c:{}};Store.set('ttUse',U)}};
@@ -23,7 +23,7 @@ const TT = App.TT = (()=>{
     const p=new URLSearchParams({key:S.tomtomKey,traffic:'true',travelMode:'car',routeType:fun?'thrilling':'fastest',instructionsType:'text',language:'it-IT',routeRepresentation:'polyline',computeTravelTimeFor:'all'});
     if(fun){p.set('hilliness','normal');p.set('windingness','high')}
     if(o.alternates&&stops.length===2&&!fun)p.set('maxAlternatives',String(Math.min(2,o.alternates)));
-    for(const x of ['toll','motorway','traffic','ferry'])p.append('sectionType',x);
+    for(const x of ['toll','motorway','traffic','ferry','lanes'])p.append('sectionType',x);
     if(o.avoidTolls)p.append('avoid','tollRoads');if(o.avoidHighways||fun)p.append('avoid','motorways');if(o.avoidFerries)p.append('avoid','ferries');
     if(stops[0].heading!=null)p.set('vehicleHeading',String(Math.round((stops[0].heading+360)%360)));
     const locs=stops.map(s=>s.lat.toFixed(6)+','+s.lon.toFixed(6)).join(':');
@@ -40,6 +40,8 @@ const TT = App.TT = (()=>{
       const street=it.street||(it.roadNumbers||[]).join(' · ')||'';const txt=(it.message||it.combinedMessage||'Prosegui').replace(/<[^>]+>/g,'');
       let leg=0;for(let li=0;li<legs.length;li++)if(legs[li].base<=i)leg=li;
       man.push({type:t,text:txt,alert:txt,pre:txt,post:'',succ:'',len:nx?nx.routeOffsetInMeters-it.routeOffsetInMeters:0,time:nx?nx.travelTimeInSeconds-it.travelTimeInSeconds:0,i,ie:i,street,begin:street,toll:false,hw:false,ferry:false,exits:it.roundaboutExitNumber||(it.exitNumber&&+it.exitNumber)||0,sign:it.signpostText?{text:it.signpostText}:null,leg})});
+    const lanes=secs.filter(x=>x.sectionType==='LANES'&&x.lanes&&x.lanes.length);
+    for(const m of man){const L=lanes.find(x=>Math.abs(x.endPointIndex-m.i)<=3||(x.startPointIndex<=m.i&&x.endPointIndex>=m.i));if(L)m.lanes=L.lanes.map(l=>({d:l.directions||[],f:l.follow||null}))}
     for(let k=0;k<man.length;k++){const m=man[k];m.ie=k<man.length-1?man[k+1].i:coords.length-1;m.toll=inSec('TOLL_ROAD',m.i,m.ie)||inSec('TOLL',m.i,m.ie);m.hw=inSec('MOTORWAY',m.i,m.ie);m.ferry=inSec('FERRY',m.i,m.ie)}
     const jams=secs.filter(s=>s.sectionType==='TRAFFIC').map(s=>({a:P.cum[Math.min(s.startPointIndex,coords.length-1)],b:P.cum[Math.min(s.endPointIndex,coords.length-1)],i0:s.startPointIndex,i1:s.endPointIndex,cat:s.simpleCategory,delay:s.delayInSeconds||0,mag:s.magnitudeOfDelay||0,kmh:s.effectiveSpeedInKmh}));
     const sm=rt.summary;
@@ -47,7 +49,7 @@ const TT = App.TT = (()=>{
       traffic:{delay:sm.trafficDelayInSeconds||0,free:sm.noTrafficTravelTimeInSeconds||sm.travelTimeInSeconds,jams}}}
   // TomTom come prima scelta quando c'è la chiave; altrimenti, o se non risponde, Valhalla come prima
   const _route=API.route;
-  API.route=async(stops,o={})=>{if(!o.pedestrian&&can('route')){try{return await route(stops,o)}catch(e){console.warn('TomTom routing',e)}}return _route(stops,o)};
+  API.route=async(stops,o={})=>{if(!o.pedestrian&&!(o.exclude&&o.exclude.length)&&can('route')){try{return await route(stops,o)}catch(e){console.warn('TomTom routing',e)}}return _route(stops,o)};
   // etichetta del traffico sulle schede dei percorsi
   App.on('plan',()=>{for(const r of Plan.st.routes){if(!r.traffic||r._ttTag)continue;r._ttTag=true;const d=r.traffic.delay;
     r.tags.push(d>=180?['Traffico +'+F.dur(d),d>=900?'red':'orange']:['Traffico scorrevole','green'])}});
@@ -71,6 +73,14 @@ const TT = App.TT = (()=>{
       const l=j.cat==='ROAD_CLOSURE'?'Strada chiusa':j.cat==='ROAD_WORK'?'Lavori in corso':'Coda';
       out.push({id:'tj'+Math.round(j.a),kind:'traffic',color:App.KINDS.traffic.c,icon:FX.glyph(j.cat==='ROAD_CLOSURE'?'closure':j.cat==='ROAD_WORK'?'hazard':'traffic',22),t1:inside?l+' in corso':l,t2:`${F.km(j.b-Math.max(j.a,ctx.along))}${j.delay?' · +'+F.dur(j.delay):''}${j.kmh?' · '+j.kmh+' km/h':''}`,d:inside?0:d,show:inside,prio:big?2:1,showAt:3000,sayAt:Math.max(1500,(ctx.f.spd||0)*70),say:`${l} tra ${F.speakDist(d)}${j.delay>=60?', ritardo '+F.dur(j.delay):''}`})}
     return out});
+
+  /* =================== CORSIE =================== */
+  const LA={STRAIGHT:'M12 21V4M6 10l6-6 6 6',SLIGHT_RIGHT:'M8 21v-7l8-8M11 6h5v5',RIGHT:'M7 21v-8a3 3 0 013-3h9M15 6l4 4-4 4',SHARP_RIGHT:'M8 4v9a4 4 0 004 4h6M15 13l4 4-4 4',SLIGHT_LEFT:'M16 21v-7L8 6M13 6H8v5',LEFT:'M17 21v-8a3 3 0 00-3-3H5M9 6l-4 4 4 4',SHARP_LEFT:'M16 4v9a4 4 0 01-4 4H6M9 13l-4 4 4 4',U_TURN:'M16 21V9a4 4 0 00-8 0v6M5 12l3 3 3-3',MERGE_TO_LEFT:'M12 21V10L7 4',MERGE_TO_RIGHT:'M12 21V10l5-6'};
+  function laneSvg(l){const f=l.f;const ds=l.d.length?l.d:['STRAIGHT'];const ok=!!f;const main=f||ds[0];
+    return `<span class="ln ${ok?'ok':''}"><svg viewBox="0 0 24 24">${ds.map(d=>`<path d="${LA[d]||LA.STRAIGHT}" fill="none" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" class="${ok&&d===main?'on':''}"/>`).join('')}</svg></span>`}
+  App.on('man',({m,dist})=>{let el=$('#lanes');if(!el){const t=$('#navTop');if(!t)return;t.insertAdjacentHTML('beforeend','<div class="lanes hidden" id="lanes"></div>');el=$('#lanes')}
+    const show=m&&m.lanes&&m.lanes.length>1&&dist<1600;el.classList.toggle('hidden',!show);if(show){const h=m.lanes.map(laneSvg).join('');if(el._h!==h){el._h=h;el.innerHTML=h}}});
+  App.on('navEnd',()=>{const el=$('#lanes');if(el)el.classList.add('hidden')});
 
   /* =================== FIN DOVE ARRIVO =================== */
   const RANGE_EMPTY={type:'FeatureCollection',features:[]};let rangeData=RANGE_EMPTY;

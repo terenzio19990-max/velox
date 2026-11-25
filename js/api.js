@@ -68,7 +68,7 @@ const API = App.API = (()=>{
   function costing(o){const a={use_tolls:o.avoidTolls?0:0.5,use_highways:o.avoidHighways?0:1,use_ferry:o.avoidFerries?0:0.5};if(o.avoidTolls)a.exclude_tolls=true;if(o.avoidFerries)a.exclude_ferries=true;return a}
   async function route(stops,o={}){
     const locs=stops.map((s,i)=>{const L={lat:s.lat,lon:s.lon,type:'break'};if(i===0&&s.heading!=null){L.heading=Math.round(s.heading);L.heading_tolerance=60}return L});
-    const body={locations:locs,costing:o.pedestrian?'pedestrian':'auto',costing_options:o.pedestrian?{}:{auto:costing(o)},language:'it-IT',units:'kilometers',directions_options:{units:'kilometers',language:'it-IT'}};
+    const body={locations:locs,costing:o.pedestrian?'pedestrian':'auto',costing_options:o.pedestrian?{}:{auto:costing(o)},language:'it-IT',units:'kilometers',directions_options:{units:'kilometers',language:'it-IT'}};if(o.exclude&&o.exclude.length)body.exclude_polygons=o.exclude;
     if(o.alternates&&stops.length===2)body.alternates=o.alternates;
     const j=await vpost('route',body,25000);
     const trips=[j.trip].concat((j.alternates||[]).map(a=>a.trip)).filter(Boolean);

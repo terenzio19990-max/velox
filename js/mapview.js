@@ -49,7 +49,17 @@ const MapView = App.Map = (()=>{
   function rasterFallback(){const dark=App.isDark();return {version:8,glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',
     sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,maxzoom:19,attribution:'© OpenStreetMap'}},
     layers:[{id:'background',type:'background',paint:{'background-color':dark?'#121417':'#eee'}},{id:'osm',type:'raster',source:'osm',paint:dark?{'raster-saturation':-0.7,'raster-brightness-max':0.55,'raster-contrast':0.1,'raster-hue-rotate':180}:{}}]}}
-  function buildStyle(){if(App.S.mapType==='sat')return satStyle();if(!baseStyle)return rasterFallback();
+  // mappa TomTom (Map Display, riquadri raster in alta definizione) e colori del traffico sulle strade
+  const TTOK=()=>App.S.tomtomKey&&App.TT&&App.TT.can('tiles');
+  function ttStyle(){const k=encodeURIComponent(App.S.tomtomKey),st=App.isDark()?'night':'main';
+    return {version:8,glyphs:baseStyle?baseStyle.glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',sprite:baseStyle?baseStyle.sprite:undefined,
+      sources:{tt:{type:'raster',tiles:['a','b','c','d'].map(h=>`https://${h}.api.tomtom.com/map/1/tile/basic/${st}/{z}/{x}/{y}.png?key=${k}&tileSize=512&language=it-IT&view=Unified`),tileSize:256,maxzoom:22,attribution:'© TomTom'}},
+      layers:[{id:'background',type:'background',paint:{'background-color':App.isDark()?'#1d2a36':'#f1efe9'}},{id:'tt',type:'raster',source:'tt'}]}}
+  function addFlow(s){if(!App.S.ttFlow||!TTOK())return s;const k=encodeURIComponent(App.S.tomtomKey),dark=App.isDark()||App.S.mapType==='sat';
+    s.sources.ttflow={type:'raster',tiles:['a','b','c','d'].map(h=>`https://${h}.api.tomtom.com/traffic/map/4/tile/flow/${dark?'relative0-dark':'relative0'}/{z}/{x}/{y}.png?key=${k}&tileSize=512&thickness=${dark?8:6}`),tileSize:256,minzoom:6,maxzoom:22,attribution:'Traffico © TomTom'};
+    const lay={id:'ttflow',type:'raster',source:'ttflow',minzoom:6,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],6,0.65,12,0.9]}};const i=s.layers.findIndex(l=>l.type==='symbol');if(i<0)s.layers.push(lay);else s.layers.splice(i,0,lay);return s}
+  function buildStyle(){return addFlow(buildStyle0())}
+  function buildStyle0(){if(App.S.mapType==='tt'&&TTOK())return ttStyle();if(App.S.mapType==='sat')return satStyle();if(!baseStyle)return rasterFallback();
     const s=App.isDark()?darken(baseStyle):JSON.parse(JSON.stringify(baseStyle));
     const b=s.layers.find(l=>l.id==='building-3d');if(b){b.layout=Object.assign({},b.layout,{visibility:App.S.buildings3d?'visible':'none'})}
     // punti di interesse più visibili: rimuovo il filtro di rango sui POI
@@ -161,7 +171,7 @@ const MapView = App.Map = (()=>{
 
   /* ---------- avvio ---------- */
   async function init(center){await loadBase();
-    map=new maplibregl.Map({container:'map',style:buildStyle(),center:center?[center.lon,center.lat]:[12.6,42.2],zoom:center?14:5.3,attributionControl:false,maxPitch:70,fadeDuration:150,dragRotate:true,pitchWithRotate:true,touchPitch:true});
+    map=new maplibregl.Map({container:'map',style:buildStyle(),center:center?[center.lon,center.lat]:[12.6,42.2],zoom:center?14:5.3,attributionControl:false,maxPitch:70,transformRequest:url=>{if(/api\.tomtom\.com\/(map\/1\/tile|traffic\/map\/4\/tile)\//.test(url)&&App.TT)App.TT.use('tiles');return {url}},fadeDuration:150,dragRotate:true,pitchWithRotate:true,touchPitch:true});
     map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
     map.touchZoomRotate.enableRotation();
     makePuck();

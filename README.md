@@ -23,6 +23,21 @@ Navigatore per telefono con **autovelox, tutor e costo del viaggio**. È una web
 - **Musica**: Spotify (telecomando dell'app, account Premium e Client ID gratuito) e Apple Music (apertura rapida, oppure riproduzione dentro l'app con token sviluppatore).
 - Animazioni in stile Waze: faro sulla mappa oscurata con scheda dall'alto, fumetti che saltano fuori dai marcatori, «Sei qui» toccando la tua posizione.
 
+- **ZTL**: zone a traffico limitato sulla mappa, avviso se il percorso ci entra (con orari) e ricalcolo che le evita, avviso a voce prima del varco.
+- **Prezzi carburanti ufficiali** (MIMIT Osservaprezzi, aggiornati ogni mattina): prezzi sulla mappa, il distributore più conveniente lungo il percorso, media nazionale usata per il costo del viaggio.
+- **Salite e discese**: profilo altimetrico del percorso, dislivello, pendenze massime, avviso prima delle discese ripide, consumo extra stimato.
+- **Corsie** da prendere agli incroci (con la chiave TomTom).
+- **Dove ho parcheggiato**: salvato da solo quando scendi dall'auto, con foto, nota, scadenza della sosta e promemoria.
+- **Diario di guida**: ogni tragitto registrato da solo, km e costi del mese, tragitti abituali con il tempo migliore, esportazione CSV e GPX.
+- **Comandi vocali**: «portami a casa», «segnala polizia», «quanto manca?», «che limite c'è?», «prossima canzone», «dov'è la macchina?».
+- **Mappe offline**: scarichi una zona o il corridoio del percorso prima di partire.
+- **Backup** di tutti i dati in un file, da esportare e reimportare.
+- **Modalità pista**: cronometro sul giro con traguardo e settori fissati da te, delta in tempo reale sul miglior giro, giro ideale, g stimati dal GPS, telemetria CSV per ogni giro.
+- **HUD**: velocità e limite enormi su schermo nero, con modalità specchio per il parabrezza.
+- **Siri e Comandi rapidi**: link pronti come «Ehi Siri, Sentinella casa», che aprono l'app con il percorso già calcolato.
+- **Conferme delle segnalazioni**: passando accanto a una segnalazione l'app chiede «c'è ancora?» con un tocco.
+- **Mappa TomTom** e **colori del traffico sulle strade** (facoltativi, con la chiave TomTom).
+
 ## Pubblicarla su GitHub Pages (5 minuti)
 
 1. Crea un repository su GitHub (anche privato va bene se hai GitHub Pro; altrimenti pubblico).
@@ -32,6 +47,9 @@ Navigatore per telefono con **autovelox, tutor e costo del viaggio**. È una web
 5. Al primo avvio consenti la posizione («Durante l'uso» con «Posizione esatta»).
 
 ### Dati aggiornati da soli
+
+I prezzi dei carburanti li prepara la GitHub Action **Prezzi carburanti** (cartella `.github/workflows`): dopo il primo caricamento aprila dalla scheda **Actions** e premi **Run workflow** una volta; poi gira da sola ogni mattina.
+
 
 Nella scheda **Actions** del repository trovi «Aggiorna dati autovelox e tutor». Avvialo una volta a mano (*Run workflow*): scarica gli autovelox aggiornati da OpenStreetMap e **ricostruisce sulla mappa tutte le tratte tutor ufficiali** (elenco Polizia di Stato in `tools/tutor-ufficiali.csv`). Poi gira da solo ogni lunedì. Se in *Settings → Actions → General* i permessi del workflow sono in sola lettura, imposta *Read and write permissions*.
 

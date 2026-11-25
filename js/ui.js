@@ -50,6 +50,13 @@ const UI = App.UI = (()=>{
         <button id="qRep"><span class="qi" style="background:linear-gradient(160deg,#FFB340,#FF8A00)"><svg><use href="#i-alert"/></svg></span>Segnala</button>
         <button id="qStage"><span class="qi" style="background:linear-gradient(160deg,#5E5CE6,#3634A3)"><svg><use href="#i-clock"/></svg></span>Prove a tempo</button>
         <button id="qRange"><span class="qi" style="background:linear-gradient(160deg,#5AC8FA,#0A84FF)"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5" fill="none" stroke="#fff" stroke-width="2" stroke-dasharray="3 2.2"/><circle cx="12" cy="12" r="2.6" fill="#fff"/></svg></span>Fin dove arrivo</button>
+        <button id="qPark"><span class="qi" style="background:linear-gradient(160deg,#409CFF,#0060DF)"><b style="color:#fff;font:800 19px var(--font)">P</b></span>Parcheggio</button>
+        <button id="qFuel"><span class="qi" style="background:linear-gradient(160deg,#4CD964,#248A3D)"><svg viewBox="0 0 24 24"><path d="M5 20V5.5A1.5 1.5 0 016.5 4h6A1.5 1.5 0 0114 5.5V20M4 20h11M6.5 9h6M14 11h1.5a1.5 1.5 0 011.5 1.5V16a1.5 1.5 0 003 0V8.5L17 6" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Carburante</button>
+        <button id="qDiary"><span class="qi" style="background:linear-gradient(160deg,#FFB340,#E07800)"><svg viewBox="0 0 24 24"><path d="M6 3.5h10.5A1.5 1.5 0 0118 5v14.5a1 1 0 01-1 1H6.5A1.5 1.5 0 015 19V4.5a1 1 0 011-1zM9 8h6M9 11.5h6M9 15h3.5" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round"/></svg></span>Diario</button>
+        <button id="qOff"><span class="qi" style="background:linear-gradient(160deg,#8E8E93,#48484A)"><svg viewBox="0 0 24 24"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 19.5h14" fill="none" stroke="#fff" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round"/></svg></span>Mappe offline</button>
+        <button id="qTrk"><span class="qi" style="background:linear-gradient(160deg,#FF6482,#D70040)"><svg viewBox="0 0 24 24"><path d="M5 21V4M5 4h12l-2.5 4L17 12H5" fill="none" stroke="#fff" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/><path d="M8 4v8M11 4v8M14 4v8M5 8h11" stroke="#fff" stroke-width="1" opacity=".55"/></svg></span>Pista</button>
+        <button id="qHud"><span class="qi" style="background:linear-gradient(160deg,#3A3A3C,#000)"><b style="color:#30D158;font:800 17px var(--font)">88</b></span>HUD</button>
+        <button id="qSiri"><span class="qi" style="background:linear-gradient(160deg,#BF5AF2,#5E5CE6 55%,#0A84FF)"><svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" fill="#fff"/><path d="M5.5 11a6.5 6.5 0 0013 0M12 17.5V21" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"/></svg></span>Siri</button>
       </div>
       <div class="sec"><h3>Guida</h3></div>
       <div class="group">
@@ -70,7 +77,7 @@ const UI = App.UI = (()=>{
         r.querySelectorAll('[data-rec]').forEach(b=>b.onclick=()=>openPlace(recents[+b.dataset.rec]));
         const rc=$('#hRecClear');if(rc)rc.onclick=()=>{recents=[];Store.set('recents',recents);render()};
         $('#hDrive').onclick=()=>{App.toggleDrive();render()};$('#hTutor').onclick=()=>{Guard.act?Guard.end('manuale'):Guard.startManual();render()};
-        $('#qWx').onclick=()=>show('weather');$('#qLive').onclick=()=>show('live');$('#qConv').onclick=()=>show('convoy');$('#qMus').onclick=()=>show('music');$('#qFun').onclick=()=>show('funroads');$('#qRep').onclick=()=>show('report');$('#qStage').onclick=()=>show('stages');$('#qRange').onclick=()=>show('range');
+        $('#qWx').onclick=()=>show('weather');$('#qLive').onclick=()=>show('live');$('#qConv').onclick=()=>show('convoy');$('#qMus').onclick=()=>show('music');$('#qFun').onclick=()=>show('funroads');$('#qRep').onclick=()=>show('report');$('#qStage').onclick=()=>show('stages');$('#qRange').onclick=()=>show('range');$('#qPark').onclick=()=>show('parking');$('#qFuel').onclick=()=>show('fuel');$('#qDiary').onclick=()=>show('diary');$('#qOff').onclick=()=>show('offline');$('#qTrk').onclick=()=>show('tracks');$('#qHud').onclick=()=>App.Hud.toggle(true);$('#qSiri').onclick=()=>show('siri');
         $('#hReport').onclick=()=>show('report');const ht=$('#hTrips');if(ht)ht.onclick=()=>show('trips');$('#hCams').onclick=()=>show('cams');$('#hHist').onclick=()=>show('hist');
         $('#hPark').onclick=()=>{const pk=Store.get('park',null);if(pk)openPlace({name:'La tua auto',type:'Parcheggio',addr:'Salvato '+F.date(pk.ts),lat:pk.lat,lon:pk.lon,cat:'parking',isCar:true});else savePark()}}}};
   function savePark(){const f=App.state.fix;if(!f){App.toast('Serve la posizione per salvare il parcheggio');return}Store.set('park',{lat:f.lat,lon:f.lon,ts:Date.now()});App.toast('Parcheggio salvato');Voice.buzz(15);render()}
@@ -226,10 +233,13 @@ const UI = App.UI = (()=>{
     if(g.nTut)tips.push(['#FF9500','<b style="font-size:14px">T</b>',`${g.nTut} ${g.nTut===1?'tratta':'tratte'} con tutor`,'Ti mostro la media in tempo reale e quanto puoi andare per restare in regola.']);
     const arrH=new Date(arr).getHours();if(arrH>=22||arrH<6)tips.push(['#1C3F94','<svg><use href="#i-alert"/></svg>','Arrivo di notte','Dalle 22 alle 7 le multe per velocità aumentano di un terzo.']);
     const tile=(l,v2,sub)=>`<div class="tile"><span>${l}</span><b>${v2}</b>${sub?`<small>${sub}</small>`:''}</div>`;
-    b.innerHTML=`<div class="routes">${st.routes.map((rr,i)=>`<button class="rcard ${i===st.sel?'on':''}" data-r="${i}">
-        <div class="rc-top"><span class="rc-time">${F.dur(rr.time)}</span><span class="rc-dist">${F.km(rr.dist)}</span><span class="rc-cost">${F.eur(rr.cost.total)}</span></div>
+    const maxD=Math.max(...st.routes.map(x=>x.dist)),minT=Math.min(...st.routes.map(x=>x.time));
+    b.innerHTML=`${st.routes.length>1?`<div class="sec" style="margin-top:4px"><h3>Scegli il percorso</h3><span class="secr">${st.routes.length} alternative</span></div>`:''}<div class="routes">${st.routes.map((rr,i)=>`<button class="rcard ${i===st.sel?'on':''}" data-r="${i}">
+        <div class="rc-top"><span class="rc-time">${F.dur(rr.time)}</span>${st.routes.length>1&&rr.time-minT>=60?`<span class="rc-delta">+${F.dur(rr.time-minT)}</span>`:''}<span class="rc-dist">${F.km(rr.dist)}</span><span class="rc-cost">${F.eur(rr.cost.total)}</span></div>
+        ${App.Choose.strip(rr,maxD)}
         <div class="rc-via">${rr.via.length?'via '+esc(rr.via.join(', ')):''}</div>
-        <div class="rc-mid">${rr.tags.map(t=>`<span class="tag ${t[1]}">${esc(t[0])}</span>`).join('')}</div></button>`).join('')}</div>
+        <div class="rc-mid">${rr.tags.map(t=>`<span class="tag ${t[1]}">${esc(t[0])}</span>`).join('')}</div>
+        <div class="rc-facts">${App.Choose.facts(rr,guardOnRoute(rr))}</div></button>`).join('')}</div>${App.Choose.legend(st.routes)}
       <div class="sec"><h3>Il viaggio in breve</h3></div>
       <div class="tiles">${tile('Partenza',st.depart?F.clock(st.depart):'Adesso')}${tile('Arrivo',F.clock(arr),stopsMin?`con ${stopsMin} min di soste`:'')}
         ${tile('Guida',F.dur(r.time),F.km(r.dist))}${tile('Costo totale',F.eur(c.total),ppl>1?F.eur(c.per)+' a testa':'')}
@@ -300,7 +310,7 @@ const UI = App.UI = (()=>{
   /* ---------- PANNELLO NAVIGAZIONE ---------- */
   R.nav=()=>({peek:100,detent:'peek',html:`<div class="navbar"><div class="nb-eta"><b id="nbEta">--:--</b><div class="nb-sub" id="nbSub">–</div></div><button class="nb-end" id="nbEnd">Fine</button></div>
       <div style="margin-top:16px" class="actions"><button class="act" id="nbMute"><svg><use href="#${Nav.muted?'i-mute':'i-volume'}"/></svg>${Nav.muted?'Riattiva':'Silenzia'}</button><button class="act" id="nbShare"><svg><use href="#i-share"/></svg>Arrivo</button><button class="act" id="nbRep"><svg><use href="#i-alert"/></svg>Segnala</button><button class="act" id="nbOv"><svg><use href="#i-route"/></svg>Panoramica</button></div>
-      <div class="chips" style="margin-top:-4px"><button class="chip ${App.Copilot&&App.Copilot.on?'on':''}" id="nbCop" style="${App.Copilot&&App.Copilot.on?'background:#7C3AED':''}">Copilota</button><button class="chip" id="nbMus">Musica</button><button class="chip ${App.Live&&App.Live.sharing?'on':''}" id="nbLive">Posizione live</button><button class="chip" id="nbConv">Carovana</button><button class="chip ${App.Roads&&App.Roads.recording?'on':''}" id="nbMark">Tratto bello</button></div>
+      <div class="chips" style="margin-top:-4px"><button class="chip ${App.Copilot&&App.Copilot.on?'on':''}" id="nbCop" style="${App.Copilot&&App.Copilot.on?'background:#7C3AED':''}">Copilota</button><button class="chip" id="nbMus">Musica</button><button class="chip ${App.Live&&App.Live.sharing?'on':''}" id="nbLive">Posizione live</button><button class="chip" id="nbConv">Carovana</button><button class="chip" id="nbHud">HUD</button><button class="chip ${App.Roads&&App.Roads.recording?'on':''}" id="nbMark">Tratto bello</button></div>
       <div class="sec" style="margin-top:6px"><h3>Fermati lungo il percorso</h3></div>
       <div class="chips">${['fuel','charge','services','food','cafe','parking','toilets'].map(k=>{const c=catById(k);return `<button class="chip" data-along="${k}"><span style="color:${c.c};display:flex">${App.catIcon(c,16,c.c)}</span>${esc(c.l)}</button>`}).join('')}</div>
       <div id="nbExtra"></div>
@@ -309,7 +319,7 @@ const UI = App.UI = (()=>{
     bind(){$('#nbEnd').onclick=async()=>{if(await App.confirm('Terminare la navigazione?','','Termina',true)){App.stopSim&&App.stopSim();Nav.stop();home()}};
       $('#nbMute').onclick=()=>{Nav.toggleMute();render()};
       $('#nbShare').onclick=()=>{const r=Nav.rem;const d=Plan.st.stops[Plan.st.stops.length-1];const f=App.state.fix;share('Arrivo previsto',`Arrivo previsto alle ${r?F.clock(r.eta):'--'} a ${d.name}.${f?`\nSono qui: https://www.openstreetmap.org/?mlat=${f.lat.toFixed(5)}&mlon=${f.lon.toFixed(5)}`:''}`)};
-      $('#nbCop').onclick=()=>{App.Copilot.on?App.Roads.copStop(false):App.Roads.copStart();render()};$('#nbMus').onclick=()=>show('music');$('#nbLive').onclick=()=>show('live');$('#nbConv').onclick=()=>show('convoy');$('#nbMark').onclick=()=>{App.Roads.markToggle();render()};
+      $('#nbCop').onclick=()=>{App.Copilot.on?App.Roads.copStop(false):App.Roads.copStart();render()};$('#nbMus').onclick=()=>show('music');$('#nbLive').onclick=()=>show('live');$('#nbConv').onclick=()=>show('convoy');$('#nbHud').onclick=()=>App.Hud.toggle(true);$('#nbMark').onclick=()=>{App.Roads.markToggle();render()};
       $('#nbRep').onclick=()=>show('report');$('#nbOv').onclick=()=>{MapView.setCam('free');Plan.fitRoutes();App.toast('La guida riprende da sola tra pochi secondi')};
       scr.querySelectorAll('[data-along]').forEach(x=>x.onclick=()=>show('results',{cat:x.dataset.along,along:true}));
       App.emit('navPanel',{box:$('#nbExtra')});
@@ -494,11 +504,12 @@ const UI = App.UI = (()=>{
   App.on('layers',()=>{App.modal(`<div class="mb" style="padding-bottom:0"><h4>Mappa</h4></div><div class="layers">
       <button data-m="std" class="${S.mapType==='std'&&!App.isDark()?'on':''}"><span class="lp" style="background:linear-gradient(135deg,#e9eef3 0 40%,#f7d68a 40% 46%,#e9eef3 46% 70%,#bfe3c6 70%)"></span>Esplora</button>
       <button data-m="dark" class="${S.mapType==='std'&&App.isDark()?'on':''}"><span class="lp" style="background:linear-gradient(135deg,#1b1f24 0 40%,#8c6b3e 40% 46%,#1b1f24 46% 70%,#132219 70%)"></span>Notte</button>
-      <button data-m="sat" class="${S.mapType==='sat'?'on':''}"><span class="lp" style="background:linear-gradient(135deg,#3d5a3a,#6b7f4a 50%,#4a5a6e)"></span>Satellite</button></div>
-      <div class="group" style="border-radius:0"><div class="field"><label>Edifici in 3D</label><input type="checkbox" class="sw" id="l3d" ${S.buildings3d?'checked':''}></div><div class="field"><label>Traffico${S.tomtomKey?'':'<small><a href="#" id="lTTg">Serve la chiave TomTom gratuita: ecco come</a></small>'}</label><input type="checkbox" class="sw" id="lTr" ${S.traffic?'checked':''} ${S.tomtomKey?'':'disabled'}></div></div>
+      <button data-m="sat" class="${S.mapType==='sat'?'on':''}"><span class="lp" style="background:linear-gradient(135deg,#3d5a3a,#6b7f4a 50%,#4a5a6e)"></span>Satellite</button>
+      ${S.tomtomKey?`<button data-m="tt" class="${S.mapType==='tt'?'on':''}"><span class="lp" style="background:linear-gradient(135deg,#f4f1ea 0 38%,#e2001a 38% 43%,#f4f1ea 43% 66%,#cfe6c4 66%)"></span>TomTom</button>`:''}</div>
+      <div class="group" style="border-radius:0"><div class="field"><label>Edifici in 3D</label><input type="checkbox" class="sw" id="l3d" ${S.buildings3d?'checked':''}></div><div class="field"><label>Traffico${S.tomtomKey?'':'<small><a href="#" id="lTTg">Serve la chiave TomTom gratuita: ecco come</a></small>'}</label><input type="checkbox" class="sw" id="lTr" ${S.traffic?'checked':''} ${S.tomtomKey?'':'disabled'}></div>${S.tomtomKey?`<div class="field"><label>Colori del traffico sulle strade<small>Verde scorrevole, arancio rallentato, rosso coda</small></label><input type="checkbox" class="sw" id="lFlow" ${S.ttFlow?'checked':''}></div>`:''}</div>
       <div class="mbtns"><button data-x>Fine</button></div>`,(m,close)=>{
-      m.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=b.dataset.m;if(k==='sat')S.mapType='sat';else{S.mapType='std';S.theme=k==='dark'?'dark':'light'}App.saveS();App.applyTheme();MapView.restyle();close()});
-      const g=m.querySelector('#lTTg');if(g)g.onclick=e=>{e.preventDefault();close();show('ttGuide')};m.querySelector('#l3d').onchange=e=>{S.buildings3d=e.target.checked;App.saveS();MapView.restyle()};m.querySelector('#lTr').onchange=e=>{S.traffic=e.target.checked;App.saveS();App.applyTraffic()};m.querySelector('[data-x]').onclick=close})});
+      m.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>{const k=b.dataset.m;if(k==='sat'||k==='tt')S.mapType=k;else{S.mapType='std';S.theme=k==='dark'?'dark':'light'}App.saveS();App.applyTheme();MapView.restyle();close()});
+      const g=m.querySelector('#lTTg');if(g)g.onclick=e=>{e.preventDefault();close();show('ttGuide')};m.querySelector('#l3d').onchange=e=>{S.buildings3d=e.target.checked;App.saveS();MapView.restyle()};m.querySelector('#lTr').onchange=e=>{S.traffic=e.target.checked;App.saveS();App.applyTraffic()};const fl=m.querySelector('#lFlow');if(fl)fl.onchange=e=>{S.ttFlow=e.target.checked;App.saveS();MapView.restyle()};m.querySelector('[data-x]').onclick=close})});
 
   return {show,back,home,render,openPlace,get cur(){return cur},R,hdr,item,share,myPos,distTxt,fmtHours,placeIcon,selPin,clearPois,openPlan,startNav,get favs(){return favs}};
 })();

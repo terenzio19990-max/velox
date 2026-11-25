@@ -99,7 +99,7 @@
     UI.home();
     setInterval(()=>{if(st.fix&&!st.sim)Store.set('lastPos',{lat:+st.fix.lat.toFixed(4),lon:+st.fix.lon.toFixed(4)})},30000);
     const go=()=>{Voice.prime();Compass.ask();$('#splash').classList.add('out');setTimeout(()=>$('#splash').remove(),500);S.onboarded=true;App.saveS();App.startGps()};
-    if(S.onboarded||/#(live|cv)=/.test(location.hash)||/[?&]state=snt/.test(location.search)){if(!S.onboarded){S.onboarded=true;App.saveS()}$('#splash').remove();App.startGps();document.addEventListener('pointerdown',()=>Voice.prime(),{once:true})}
+    if(S.onboarded||/#(live|cv|vai|cmd|hud|pista|segnala|parcheggio|diario|carburante)\b/.test(location.hash)||/[?&]state=snt/.test(location.search)){if(!S.onboarded){S.onboarded=true;App.saveS()}$('#splash').remove();App.startGps();document.addEventListener('pointerdown',()=>Voice.prime(),{once:true})}
     else $('#spGo').onclick=go;
     layout();
     // navigazione interrotta (app chiusa per errore): propongo di riprendere
