@@ -364,3 +364,4 @@ body.navigating .recdot{top:auto;bottom:calc(var(--sheet-h,120px) + 74px)}
 .gotap>div{width:100%;max-width:420px;background:var(--card);border-radius:26px;padding:18px;display:flex;flex-direction:column;gap:6px;box-shadow:0 14px 40px rgba(0,0,0,.4);animation:hzIn .35s cubic-bezier(.2,1.2,.4,1)}
 .gotap small{color:var(--label2)}.gotap b{font:700 21px var(--font);margin-bottom:8px}
 .gotap button{height:58px;border-radius:18px;background:#34C759;color:#fff;font:700 19px var(--font)}.gotap .gt-no{height:44px;background:none;color:var(--accent);font-weight:500;font-size:16px}
+.chip.off{background:rgba(255,59,48,.16)!important;color:#FF453A!important}

@@ -7,7 +7,7 @@ const Nav = App.Nav = (()=>{
   /* ---------- icone di manovra ---------- */
   function arrow(deg){return `<svg viewBox="0 0 64 64"><g transform="rotate(${deg} 32 40)"><path d="M32 58V30" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none"/><path d="M18 32L32 14l14 18z" fill="#fff"/></g></svg>`}
   function turn(dir){const g='<path d="M22 58V36c0-7 5-12 12-12h10" stroke="#fff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" fill="none"/><path d="M42 12l14 12-14 12z" fill="#fff"/>';return `<svg viewBox="0 0 64 64">${dir==='l'?`<g transform="translate(64 0) scale(-1 1)">${g}</g>`:g}</svg>`}
-  function icon(m){const t=m.type;
+  function icon(m){if(App.Turns){const x=App.Turns.icon(m);if(x)return x}const t=m.type;
     if(t===26||t===27)return `<svg viewBox="0 0 64 64"><circle cx="32" cy="34" r="12" stroke="#fff" stroke-width="6" fill="none"/><path d="M32 60V46" stroke="#fff" stroke-width="6" stroke-linecap="round"/><text x="32" y="39" text-anchor="middle" font-size="13" font-weight="800" fill="#fff" font-family="-apple-system,system-ui">${m.exits||''}</text><path d="M44 22l8-10M44 12h8v8" stroke="#fff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>`;
     if(t===4||t===5||t===6)return `<svg viewBox="0 0 64 64"><path d="M18 58V10M18 12h28l-6 10 6 10H18" stroke="#fff" stroke-width="6" stroke-linejoin="round" stroke-linecap="round" fill="none"/></svg>`;
     if(t===10||t===2||t===18||t===20)return turn('r',false);if(t===15||t===3||t===19||t===21)return turn('l',false);
@@ -23,6 +23,7 @@ const Nav = App.Nav = (()=>{
     legEnds=rt.man.map((m,i)=>[4,5,6].includes(m.type)?manA[i]:null).filter(x=>x!=null);
     stopsLeft=stops.slice(1);
     camsOnRoute=matchCams();
+    if(App.Turns)App.Turns.annotate(rt,P,manA);
     API.routeLimits(rt).then(l=>{if(rt===route){lims=l.sort((a,b)=>a.i0-b.i0)}}).catch(()=>{})}
   function matchCams(){const out=[];const seen=new Set();const step=Math.max(1,Math.floor(P.g.length/400));
     for(let i=0;i<P.g.length;i+=step){const p=P.g[i];for(const c of Guard.nearCams(p[0],p[1],0)){if(seen.has(c.id)||c.kind==='tutorpt')continue;seen.add(c.id);
@@ -34,7 +35,7 @@ const Nav = App.Nav = (()=>{
     Store.set('lastNav',{stops,ts:Date.now()});drawProgress(true);App.emit('navStart');if(App.state.fix)update(App.state.fix,App.state.hd)}
   function stop(silent){N.active=false;App.state.navigating=false;document.body.classList.remove('navigating');App.state.awake=!!App.state.driving;if(!App.state.driving)App.keepAwake(false);
     $('#navTop').classList.add('hidden');$('#navSide').classList.add('hidden');$('#hud').classList.remove('off');$('#ctrls').classList.remove('nav');
-    MapView.setData('routeHead',EMPTY);MapView.setCam(App.state.fix?'follow':'free');Plan.clearMap();Plan.st.routes=[];rt=null;Store.del('lastNav');if(!silent)Voice.say('Navigazione terminata');App.emit('navEnd')}
+    MapView.setData('routeHead',EMPTY);MapView.setBoost&&MapView.setBoost(0,0);MapView.setCam(App.state.fix?'follow':'free');Plan.clearMap();Plan.st.routes=[];rt=null;Store.del('lastNav');if(!silent)Voice.say('Navigazione terminata');App.emit('navEnd')}
 
   /* ---------- aggiornamento a ogni posizione ---------- */
   function update(f,hd){if(!N.active||!rt)return;
@@ -50,6 +51,7 @@ const Nav = App.Nav = (()=>{
     // prossima manovra
     let k=rt.man.findIndex((m,i)=>i>0&&manA[i]>along+4);if(k<0)k=rt.man.length-1;const m=rt.man[k];const dist=Math.max(0,manA[k]-along);const spd=f.spd||0;
     renderMan(m,dist,rt.man[k+1],manA[k+1]!=null?manA[k+1]-manA[k]:null);
+    App.emit('navMan',{k,dist,along,spd,P,manA,rt});
     // voce
     if(!muted&&App.S.voice){const s=said[k];const far=m.hw||spd>22?Math.max(1200,spd*45):Math.max(350,spd*25);
       if(!s.a&&dist<far&&dist>Math.max(160,spd*12)&&(m.alert||m.pre)){s.a=true;Voice.say('Tra '+F.speakDist(dist)+', '+lc(m.alert||m.pre))}

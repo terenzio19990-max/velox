@@ -7,7 +7,7 @@ const Roads = App.Roads = (()=>{
 
   /* =================== CURVE =================== */
   // ricampiona e calcola la curvatura; restituisce le curve con direzione, raggio minimo, angolo, grado da rally (1 stretta … 6 veloce)
-  function analyze(coords){const P=G.prep(coords);if(P.len<60)return {P,curves:[],len:P.len};
+  function analyze(coords,man){const P=G.prep(coords);if(P.len<60)return {P,curves:[],len:P.len};
     const step=P.len>150000?10:P.len>40000?7:5;const n=Math.floor(P.len/step)+1;const la=new Float64Array(n),lo=new Float64Array(n);
     for(let i=0;i<n;i++){const q=G.pointAt(P,i*step);la[i]=q.lat;lo[i]=q.lon}
     const w=Math.max(2,Math.round(20/step));const k=new Float64Array(n);
@@ -23,6 +23,9 @@ const Roads = App.Roads = (()=>{
       i=end+1}
     // pericolose: strette oppure precedute da un rettilineo veloce
     for(let c=0;c<curves.length;c++){const cv=curves[c],prev=curves[c-1];const straight=cv.a-(prev?prev.b:0);cv.straight=straight;cv.danger=cv.grade<=2||(cv.grade===3&&straight>=280)||(cv.grade===4&&straight>=700&&cv.deg>=60);cv.next=curves[c+1]||null}
+    // svolte agli incroci e rotonde non sono «curve pericolose»: lì parla già la navigazione (e la freccia sulla mappa)
+    if(man&&man.length){const J=new Set([2,3,9,10,11,12,13,14,15,16,17,18,19,20,21,23,24,25,26,27,37,38]);const at=man.filter(m=>J.has(m.type)).map(m=>[P.cum[Math.min(m.i,P.g.length-1)],P.cum[Math.min(m.ie!=null&&m.type===26?m.ie:m.i,P.g.length-1)]]);
+      for(const cv of curves)if(at.some(([x0,x1])=>cv.b>=x0-35&&cv.a<=Math.max(x0,Math.min(x1,x0+250))+35)){cv.junction=true;cv.danger=false}}
     return {P,curves,len:P.len}}
   // indice di divertimento: gradi di curva per km nei tratti non urbani + tratti continui da guidare
   function funInfo(rt,an){const hwAt=s=>{const P=an.P;for(const m of rt.man){const a=P.cum[Math.min(m.i,P.g.length-1)],b=P.cum[Math.min(m.ie||m.i,P.g.length-1)];if(s>=a&&s<=b)return m.hw||(m.len>0&&m.time>0&&m.len/m.time<8)}return false};
@@ -49,7 +52,7 @@ const Roads = App.Roads = (()=>{
     return {nodes,ways}}
 
   // --- lungo il percorso ---
-  async function routeHazards(rt){if(rt._hz)return rt._hz;rt._hz=(async()=>{const an=rt._an||(rt._an=analyze(rt.coords));
+  async function routeHazards(rt){if(rt._hz)return rt._hz;rt._hz=(async()=>{const an=rt._an||(rt._an=analyze(rt.coords,rt.man));
       const pts=G.simplify(rt.coords,60);const step=Math.max(1,Math.ceil(pts.length/450));const line=pts.filter((p,i)=>i%step===0||i===pts.length-1).map(p=>p[0].toFixed(5)+','+p[1].toFixed(5)).join(',');
       const j=await API.overpass(hzQuery(r=>`(around:${r},${line})`),60000);const {nodes,ways}=parseHz(j);const P=an.P;const items=[];
       for(const n of nodes){const pr=G.proj(n.lat,n.lon,P);if(pr.d>(n.k==='scenic'?400:28))continue;if(n.dir!=null&&n.k!=='scenic'&&G.adiff(n.dir,pr.b)>100&&G.adiff(n.dir,pr.b)<170)continue;items.push(Object.assign(n,{along:pr.along,side:n.k==='scenic'?side(P,pr,n):0}))}
@@ -83,7 +86,7 @@ const Roads = App.Roads = (()=>{
       if(area<=9000)boxes.push([lo0-pad,la0-pad,lo1+pad,la1+pad]);
       else{const T=0.85;const tiles=new Set();for(let i=0;i<rt.coords.length;i+=3){const p=rt.coords[i];tiles.add(Math.floor(p[0]/T)+'_'+Math.floor(p[1]/T))}for(const t of tiles){const [a,b]=t.split('_').map(Number);boxes.push([b*T,a*T,(b+1)*T,(a+1)*T])}}
       const list=[];const seen=new Set();for(const bx of boxes.slice(0,12)){try{for(const x of await incidentsBox(bx))if(!seen.has(x.id)){seen.add(x.id);list.push(x)}}catch(e){}}
-      const P=(rt._an||(rt._an=analyze(rt.coords))).P;const on=[];
+      const P=(rt._an||(rt._an=analyze(rt.coords,rt.man))).P;const on=[];
       for(const x of list){const first=G.proj(x.g[0][0],x.g[0][1],P),last=G.proj(x.g[x.g.length-1][0],x.g[x.g.length-1][1],P);
         if(first.d<60&&(x.g.length===1||(last.d<60&&last.along>=first.along-20)))on.push(Object.assign(x,{along:first.along,alongEnd:last.along}))}
       on.sort((a,b)=>a.along-b.along);return {all:list,on,delay:on.reduce((s,x)=>s+(x.delay||0),0)}})();rt._inc.catch(()=>{rt._inc=null});return rt._inc}
@@ -149,8 +152,8 @@ const Roads = App.Roads = (()=>{
       for(const s of hz.segs){if(!want(s.k))continue;const d=s.a-along;if(along>=s.a&&along<=s.b){out.push({id:s.id+'in',kind:s.k,color:K[s.k].c,icon:FX.glyph(s.k,22),t1:s.l,t2:`ancora ${F.km(s.b-along)}`,d:0,show:true});continue}
         if(d>0&&d<900)out.push({id:s.id,kind:s.k,color:K[s.k].c,icon:FX.glyph(s.k,22),t1:s.l,t2:`per ${F.km(s.b-s.a)}`,d,sayAt:Math.max(300,sp*15),say:`Tra ${F.speakDist(d)}, ${s.l.toLowerCase()} per ${F.speakDist(s.b-s.a)}`})}}
       // curve pericolose (non in modalità copilota: lì parlano le note)
-      const an=r&&r._an;if(an&&S.hzCurves&&!Copilot.on)for(const c of an.curves){const d=c.a-along;if(d<-5||d>700)continue;const fast=kmh>c.vs+12;if(!c.danger&&!fast)continue;
-        out.push({id:'c'+Math.round(c.a),kind:'curve',color:K.curve.c,icon:curveIcon(c,26),t1:c.hair?'Tornante':'Curva pericolosa',t2:`${c.dir>0?'a destra':'a sinistra'} · consigliati ${c.vs}`,d,prio:fast?2:1,sayAt:Math.max(150,sp*9),say:`${c.hair?'Tornante':'Curva pericolosa'} a ${c.dir>0?'destra':'sinistra'} tra ${F.speakDist(d)}${fast?', rallenta a '+c.vs:''}`})}
+      const an=r&&r._an;if(an&&S.hzCurves&&!Copilot.on)for(const c of an.curves){if(c.junction)continue;const d=c.a-along;if(d<-5||d>700)continue;const fast=kmh>c.vs+12;if(!c.danger&&!fast)continue;
+        out.push({id:'c'+Math.round(c.a),kind:'curve',color:K.curve.c,icon:curveIcon(c,26),t1:c.hair?'Tornante':'Curva pericolosa',t2:`${c.dir>0?'a destra':'a sinistra'} · consigliati ${c.vs}`,d,prio:fast?2:1,sayAt:Math.max(150,sp*9),say:S.hzCurvesVoice===false?null:`${c.hair?'Tornante':'Curva pericolosa'} a ${c.dir>0?'destra':'sinistra'} tra ${F.speakDist(d)}${fast?', rallenta a '+c.vs:''}`})}
       // incidenti e code
       const inc=r&&r._incv;if(inc)for(const x of inc.on){const d=x.along-along;if(d<-20||d>6000)continue;
         out.push({id:x.id,kind:x.k,color:K[x.k].c,icon:FX.glyph(x.k,22),t1:x.l,t2:[x.delay?'+'+F.dur(x.delay):'',x.len?F.km(x.len):''].filter(Boolean).join(' · '),d,prio:x.k==='closure'||x.k==='accident'?2:1,showAt:2500,sayAt:Math.max(1200,sp*60),say:`${x.l} tra ${F.speakDist(d)}${x.delay?', ritardo '+F.dur(x.delay):''}`,tap:()=>tapInc(x.id)})}}
@@ -177,7 +180,7 @@ const Roads = App.Roads = (()=>{
   function gapCall(g){if(g<35)return 'e';const R=[50,70,100,150,200,250,300,400,500];if(g>520)return 'dritto';let b=R[0];for(const r of R)if(Math.abs(r-g)<Math.abs(b-g))b=r;return String(b)}
   const Copilot=App.Copilot={on:false,t0:0,said:new Set(),maxG:0,lastF:null,g:{lat:0,lon:0},key:null,splits:[]};
   function copStart(){const r=Nav.route;if(!r)return;Copilot.on=true;Copilot.t0=Date.now();Copilot.said=new Set();Copilot.maxG=0;Copilot.vmax=0;Copilot.lastF=null;Copilot.dist0=0;
-    const a=r.coords[0],b=r.coords[r.coords.length-1];Copilot.key=[a,b].map(p=>p[0].toFixed(3)+','+p[1].toFixed(3)).join('>');if(!r._an)r._an=analyze(r.coords);
+    const a=r.coords[0],b=r.coords[r.coords.length-1];Copilot.key=[a,b].map(p=>p[0].toFixed(3)+','+p[1].toFixed(3)).join('>');if(!r._an)r._an=analyze(r.coords,r.man);
     $('#copi').classList.remove('hidden');App.emit('layout');Voice.say('Copilota pronto. Note sulle curve attive.',true);copRender()}
   function copStop(save){if(!Copilot.on)return;Copilot.on=false;$('#copi').classList.add('hidden');App.emit('layout');
     if(save){const secs=(Date.now()-Copilot.t0)/1000;const r=Nav.route||Copilot.lastRoute;const best=Store.get('stages',{});const k=Copilot.key;const prev=best[k];const dist=r?r.dist:0;
@@ -187,14 +190,14 @@ const Roads = App.Roads = (()=>{
       App.toast(`Tempo ${F.mmss(secs)}${isBest?' · nuovo record':prev?' · record '+F.mmss(prev.secs):''}`,6000);Voice.say(`Arrivati. Tempo ${Math.floor(secs/60)} minuti e ${Math.round(secs%60)} secondi${isBest&&prev?'. Nuovo record':''}`)}}
   App.on('navEnd',()=>copStop(false));App.on('beforeArrive',()=>{if(Copilot.on)copStop(true)});
   App.on('navStart',()=>{if(App.state.wantCopilot){App.state.wantCopilot=false;setTimeout(copStart,600)}});
-  App.on('navReroute',()=>{const r=Nav.route;if(r&&!r._an)r._an=analyze(r.coords)});
+  App.on('navReroute',()=>{const r=Nav.route;if(r&&!r._an)r._an=analyze(r.coords,r.man)});
   App.on('tick',({f,hd})=>{if(!Copilot.on||!Nav.route)return;const r=Nav.route,an=r._an;if(!an)return;const along=Nav.along(),sp=f.spd||0;
     // accelerazione laterale e longitudinale dal GPS (non dipende da come è montato il telefono)
     const L=Copilot.lastF;if(L&&f.t>L.t){const dt=(f.t-L.t)/1000;if(dt>0.3&&dt<3){const dh=hd!=null&&L.hd!=null?G.rad(G.sdiff(L.hd,hd))/dt:0;const lat=sp*dh/9.81,lon=(sp-(L.spd||0))/dt/9.81;
       Copilot.g.lat=Copilot.g.lat*0.4+Math.max(-1.5,Math.min(1.5,lat))*0.6;Copilot.g.lon=Copilot.g.lon*0.4+Math.max(-1.5,Math.min(1.5,lon))*0.6;Copilot.maxG=Math.max(Copilot.maxG,Math.hypot(Copilot.g.lat,Copilot.g.lon))}}
     Copilot.lastF={t:f.t,hd,spd:sp};Copilot.vmax=Math.max(Copilot.vmax||0,sp*3.6);Copilot.lastRoute=r;
     // note: 4,5 secondi prima della curva (minimo 70 m), concatenate se ravvicinate
-    const lead=Math.max(70,sp*4.5);const nx=an.curves.find(c=>c.b>along+5);Copilot.next=nx;
+    const lead=Math.max(70,sp*4.5);const nx=an.curves.find(c=>c.b>along+5&&!c.junction);Copilot.next=nx;
     if(nx&&!Copilot.said.has(nx.a)&&nx.a-along<=lead){let txt=noteText(nx);Copilot.said.add(nx.a);let c=nx;
       for(let k=0;k<2&&c.next;k++){const gap=c.next.a-c.b;if(gap>110)break;const call=gapCall(gap);txt+=(call==='e'?' e ':', '+call+', ')+noteText(c.next);Copilot.said.add(c.next.a);c=c.next}
       const after=c.next?c.next.a-c.b:null;if(after!=null&&after>520)txt+=', poi dritto';
@@ -210,10 +213,10 @@ const Roads = App.Roads = (()=>{
 
   /* =================== PIANIFICAZIONE: sezione «Guida» =================== */
   App.on('plan',()=>{const rs=Plan.st.routes;if(!rs.length||rs._funDone)return;rs._funDone=true;
-    for(const r of rs){r._an=r._an||analyze(r.coords);r.fun=funInfo(r,r._an);if(r.fun.stars>=3)r.tags.push(['Curve '+'★'.repeat(r.fun.stars),'purple'])}
+    for(const r of rs){r._an=r._an||analyze(r.coords,r.man);r.fun=funInfo(r,r._an);if(r.fun.stars>=3)r.tags.push(['Curve '+'★'.repeat(r.fun.stars),'purple'])}
     if(S.funRoute&&rs.length>1){let bi=0;rs.forEach((r,i)=>{if(r.fun.dens>rs[bi].fun.dens)bi=i});if(!rs[bi].tags.some(t=>t[0]==='Più divertente'))rs[bi].tags.unshift(['Più divertente','purple']);if(bi!==Plan.st.sel){Plan.select(bi);return}}
     App.emit('plan')});
-  App.on('planBody',({route,box})=>{if(!box)return;const r=route;r._an=r._an||analyze(r.coords);r.fun=r.fun||funInfo(r,r._an);
+  App.on('planBody',({route,box})=>{if(!box)return;const r=route;r._an=r._an||analyze(r.coords,r.man);r.fun=r.fun||funInfo(r,r._an);
     let el=box.querySelector('#rdBox');if(!el){box.insertAdjacentHTML('afterbegin','<div id="rdBox"></div>');el=box.querySelector('#rdBox')}
     const dang=r._an.curves.filter(c=>c.danger).length,hair=r._an.curves.filter(c=>c.hair).length;
     // tratti da guidare evidenziati
@@ -233,10 +236,10 @@ const Roads = App.Roads = (()=>{
     else ie.innerHTML=App.UI.item({attr:'id="rdTT"',color:'#8E8E93',icon:FX.glyph('traffic',18),t1:'Incidenti e code in tempo reale',t2:'Aggiungi la chiave TomTom gratuita nelle impostazioni',chev:true});
     const tt=$('#rdTT');if(tt)tt.onclick=()=>App.UI.show('settings')});
   App.on('plan',()=>{if(!Plan.st.routes.length&&!Nav.active){routeLayer={nodes:[],segs:[],inc:[],fun:[],curves:[]};publish()}});
-  App.on('navStart',()=>{const r=Nav.route;if(!r)return;r._an=r._an||analyze(r.coords);routeLayer.fun=[];routeLayer.curves=r._an.curves.filter(c=>c.danger);
+  App.on('navStart',()=>{const r=Nav.route;if(!r)return;r._an=r._an||analyze(r.coords,r.man);routeLayer.fun=[];routeLayer.curves=r._an.curves.filter(c=>c.danger);
     routeHazards(r).then(hz=>{r._hzv=hz;routeLayer.nodes=hz.nodes;publish()}).catch(()=>{});
     if(S.tomtomKey){const upd=()=>{if(Nav.route!==r)return;routeIncidents(r).then(inc=>{if(inc){r._incv=inc;routeLayer.inc=inc.on;publish();App.emit('trafficDelay',inc.delay)}}).catch(()=>{})};upd();clearInterval(incTimer);incTimer=setInterval(upd,10*60e3)}publish()});
-  App.on('navReroute',()=>{const r=Nav.route;if(!r)return;r._an=analyze(r.coords);routeLayer.curves=r._an.curves.filter(c=>c.danger);routeHazards(r).then(hz=>{r._hzv=hz;routeLayer.nodes=hz.nodes;publish()}).catch(()=>{})});
+  App.on('navReroute',()=>{const r=Nav.route;if(!r)return;r._an=analyze(r.coords,r.man);routeLayer.curves=r._an.curves.filter(c=>c.danger);routeHazards(r).then(hz=>{r._hzv=hz;routeLayer.nodes=hz.nodes;publish()}).catch(()=>{})});
   App.on('navEnd',()=>{clearInterval(incTimer);routeLayer={nodes:[],segs:[],inc:[],fun:[],curves:[]};publish()});
 
   /* =================== STRADE DA GUIDARE VICINO A ME =================== */

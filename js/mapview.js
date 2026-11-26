@@ -112,7 +112,7 @@ const MapView = App.Map = (()=>{
      ruotare, rotella) la camera non viene mai riposizionata, così i gesti non vengono interrotti.
      A fine gesto: se la posizione è stata spostata lontano dal centro si passa a «libera», altrimenti
      si resta in modalità segui adottando lo zoom scelto dall'utente. */
-  let puck=null,puckEl=null,disp=null,dispHd=0,camMode='free',prevMode='follow',lastFrame=0,freeSince=0,zoomS=16,navPitch=55,navZoomOff=0;
+  let puck=null,puckEl=null,disp=null,dispHd=0,camMode='free',prevMode='follow',lastFrame=0,freeSince=0,zoomS=16,navPitch=55,navZoomOff=0;let boost={z:0,p:0},boostT={z:0,p:0};
   let touching=0,wheelT=0,gestRot=false,gestPan=false,lastBr=null;
   function makePuck(){puckEl=document.createElement('div');puckEl.className='puck';
     puckEl.innerHTML='<div class="halo"></div><div class="cone"></div><div class="dot"></div><svg class="arrow" viewBox="0 0 48 48"><defs><filter id="sh" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="2" flood-opacity=".4"/></filter></defs><path d="M24 5l14 34-14-8-14 8z" fill="#0A84FF" stroke="#fff" stroke-width="3" stroke-linejoin="round" filter="url(#sh)"/></svg>';
@@ -164,7 +164,7 @@ const MapView = App.Map = (()=>{
     if(camMode!=='free'&&!App.state.mapBusy&&!gesturing()&&!map.isMoving()){
       const o={center:[disp.lon,disp.lat]};
       if(camMode==='heading'||camMode==='nav'){const br=map.getBearing();if(Math.abs(G.sdiff(br,dispHd))>0.3)o.bearing=dispHd}
-      if(camMode==='nav'){const zt=zoomFor(f.spd);zoomS+=(zt-zoomS)*(1-Math.exp(-dt/1.2));o.zoom=Math.max(3,Math.min(19,zoomS+navZoomOff));o.pitch=navPitch}
+      if(camMode==='nav'){const zt=zoomFor(f.spd);zoomS+=(zt-zoomS)*(1-Math.exp(-dt/1.2));const kb=1-Math.exp(-dt/0.9);boost.z+=(boostT.z-boost.z)*kb;boost.p+=(boostT.p-boost.p)*kb;o.zoom=Math.max(3,Math.min(19.5,zoomS+navZoomOff+boost.z));o.pitch=Math.min(68,navPitch+boost.p)}
       map.jumpTo(o)}
     // ripresa automatica in guida e in navigazione dopo 10 s senza tocchi
     if(camMode==='free'&&(App.state.navigating||App.state.driving)&&freeSince&&!gesturing()&&performance.now()-freeSince>10000){freeSince=0;setCam(App.state.navigating?'nav':prevMode==='nav'?'heading':prevMode)}}
@@ -205,5 +205,5 @@ const MapView = App.Map = (()=>{
   function showPuck(){if(puck&&!puck._map)puck.addTo(map)}
   function fit(bounds,opt={}){setCam('free');const H=innerHeight,vis=Sheet.visible();map.fitBounds(bounds,Object.assign({padding:{top:Math.max(70,H*0.08),bottom:Math.min(vis,H*0.62)+30,left:40,right:40},duration:700,maxZoom:16},opt))}
   function flyTo(lat,lon,z=15.5){map.easeTo({center:[lon,lat],zoom:Math.max(map.getZoom(),z),duration:700})}
-  return {init,restyle,setData,setCam,get ready(){return ready&&!!map&&!!map.style},get cam(){return camMode},showPuck,fit,flyTo,get map(){return map},updatePadding,get disp(){return disp}};
+  return {init,restyle,setData,setCam,setBoost(z,p){boostT={z:z||0,p:p||0}},get ready(){return ready&&!!map&&!!map.style},get cam(){return camMode},showPuck,fit,flyTo,get map(){return map},updatePadding,get disp(){return disp}};
 })();
