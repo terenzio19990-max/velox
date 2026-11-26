@@ -43,6 +43,21 @@ const MapView = App.Map = (()=>{
       else if(l.type==='symbol'){if(l.layout&&l.layout['text-field']){p['text-color']=/water/.test(id)?'#5d86a8':DARK.label;p['text-halo-color']=DARK.halo;p['text-halo-width']=1.2}}
     }
     return s}
+  /* tema Neon: notte futuristica, strade luminose con alone, edifici di vetro scuro che si accendono con l'altezza */
+  const NEON={bg:'#04060D',land:'#060A14',water:'#041226',park:'#04140F',bld:'#0A1124',label:'#A9B8FF',halo:'#04060D',
+    motorway:'#FF3DAE',trunk:'#22D3EE',primary:'#38BDF8',secondary:'#6D7CFF',minor:'#1B2547',service:'#141B33',casing:'#02040A',rail:'#2B2F5A',path:'#1A2140'};
+  function neon(st){const s=darken(st);const glow=[];
+    for(const l of s.layers){const id=l.id,p=l.paint=l.paint||{};
+      if(l.type==='background')p['background-color']=NEON.bg;
+      else if(l.type==='fill'){if(/water/.test(id))p['fill-color']=NEON.water;else if(/park|wood|grass|forest/.test(id))p['fill-color']=NEON.park;else if(/building/.test(id)){p['fill-color']=NEON.bld;p['fill-outline-color']='#1B2B55'}else if(!/road_area/.test(id))p['fill-color']=NEON.land}
+      else if(l.type==='fill-extrusion'){p['fill-extrusion-color']=['interpolate',['linear'],['coalesce',['get','render_height'],10],0,'#0B1430',25,'#172A63',60,'#3B2C8F',120,'#7A2FBF'];p['fill-extrusion-opacity']=0.88;p['fill-extrusion-vertical-gradient']=true}
+      else if(l.type==='line'&&!/boundary|aeroway/.test(id)){let c=null,g=false;
+        if(/waterway/.test(id))c='#0B2F5A';else if(/casing/.test(id))c=NEON.casing;else if(/motorway/.test(id)){c=NEON.motorway;g=true}else if(/trunk|primary/.test(id)){c=/trunk/.test(id)?NEON.trunk:NEON.primary;g=true}
+        else if(/secondary|tertiary/.test(id))c=NEON.secondary;else if(/minor|street|link/.test(id))c=NEON.minor;else if(/service|track/.test(id))c=NEON.service;else if(/rail/.test(id))c=NEON.rail;else if(/path|pedestrian/.test(id))c=NEON.path;
+        if(c){p['line-color']=c;if(g&&!/casing/.test(id)){const gl=JSON.parse(JSON.stringify(l));gl.id=id+'-glow';gl.paint={'line-color':c,'line-blur':['interpolate',['linear'],['zoom'],6,2,16,10],'line-opacity':0.45,'line-width':['interpolate',['linear'],['zoom'],6,4,12,10,16,26]};delete gl.paint['line-dasharray'];glow.push([id,gl])}}}
+      else if(l.type==='symbol'&&l.layout&&l.layout['text-field']){p['text-color']=/water/.test(id)?'#4C7FC8':/motorway|shield/.test(id)?'#FFB3E0':NEON.label;p['text-halo-color']=NEON.halo;p['text-halo-width']=1.4}}
+    for(const [id,gl] of glow){const i=s.layers.findIndex(x=>x.id===id);s.layers.splice(i,0,gl)}
+    return s}
   function satStyle(){return {version:8,glyphs:baseStyle?baseStyle.glyphs:'https://tiles.openfreemap.org/fonts/{fontstack}/{range}.pbf',sprite:baseStyle?baseStyle.sprite:undefined,
     sources:Object.assign({sat:{type:'raster',tiles:['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'],tileSize:256,maxzoom:19,attribution:'Immagini © Esri, Maxar, Earthstar Geographics'}},baseStyle?{openmaptiles:baseStyle.sources.openmaptiles}:{}),
     layers:[{id:'background',type:'background',paint:{'background-color':'#000'}},{id:'sat',type:'raster',source:'sat'}].concat(baseStyle?baseStyle.layers.filter(l=>l.type==='symbol'&&/label|name|shield/.test(l.id)).map(l=>{const c=JSON.parse(JSON.stringify(l));c.paint=Object.assign({},c.paint,{'text-color':'#fff','text-halo-color':'rgba(0,0,0,.75)','text-halo-width':1.4});return c}):[])}}
@@ -60,7 +75,7 @@ const MapView = App.Map = (()=>{
     const lay={id:'ttflow',type:'raster',source:'ttflow',minzoom:6,paint:{'raster-opacity':['interpolate',['linear'],['zoom'],6,0.65,12,0.9]}};const i=s.layers.findIndex(l=>l.type==='symbol');if(i<0)s.layers.push(lay);else s.layers.splice(i,0,lay);return s}
   function buildStyle(){return addFlow(buildStyle0())}
   function buildStyle0(){if(App.S.mapType==='tt'&&TTOK())return ttStyle();if(App.S.mapType==='sat')return satStyle();if(!baseStyle)return rasterFallback();
-    const s=App.isDark()?darken(baseStyle):JSON.parse(JSON.stringify(baseStyle));
+    const s=App.S.mapType==='neon'?neon(baseStyle):App.isDark()?darken(baseStyle):JSON.parse(JSON.stringify(baseStyle));
     const b=s.layers.find(l=>l.id==='building-3d');if(b){b.layout=Object.assign({},b.layout,{visibility:App.S.buildings3d?'visible':'none'})}
     // punti di interesse più visibili: rimuovo il filtro di rango sui POI
     for(const l of s.layers)if(/^poi_r(1|7|20)$/.test(l.id)){l.minzoom=Math.min(l.minzoom||14,l.id==='poi_r1'?14:15)}
@@ -88,6 +103,7 @@ const MapView = App.Map = (()=>{
     const before=map.getLayer('highway-name-path')?'highway-name-path':undefined;
     map.addLayer({id:'alts-case',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':dark?'#2b2b2e':'#fff','line-width':['interpolate',['linear'],['zoom'],8,6,16,14]}},before);
     map.addLayer({id:'alts-line',type:'line',source:'alts',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':dark?'#5E6E85':'#9DB4D6','line-width':['interpolate',['linear'],['zoom'],8,3.5,16,9]}},before);
+    if(App.S.mapType==='neon')map.addLayer({id:'route-glow',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':'#2F7BFF','line-width':['interpolate',['linear'],['zoom'],8,16,16,40],'line-blur':['interpolate',['linear'],['zoom'],8,6,16,16],'line-opacity':0.55}},before);
     map.addLayer({id:'route-case',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':dark?'#0A2A55':'#0A4FB0','line-width':['interpolate',['linear'],['zoom'],8,7,16,16]}},before);
     map.addLayer({id:'route-line',type:'line',source:'route',layout:{'line-join':'round','line-cap':'round'},paint:{'line-color':['case',['==',['get','k'],'toll'],dark?'#3FA0FF':'#1E8BFF','#0A84FF'],'line-width':['interpolate',['linear'],['zoom'],8,4.5,16,11]}},before);
     // tratto tra la freccia e il resto del percorso: ridisegnato a ogni fotogramma, così la linea parte sempre dalla freccia
@@ -121,7 +137,7 @@ const MapView = App.Map = (()=>{
   // zoom con pizzico/rotella/doppio tocco attorno al centro quando si segue la posizione, attorno al dito quando la mappa è libera
   function setAround(){if(!map)return;const c=camMode!=='free'?{around:'center'}:undefined;
     map.touchZoomRotate.enable(c);map.scrollZoom.enable(c);map.touchZoomRotate.enableRotation()}
-  function setCam(m){if(m!=='free')prevMode=m;else if(camMode!=='free')freeSince=performance.now();
+  function setCam(m){lastPad="";if(m!=='free')prevMode=m;else if(camMode!=='free')freeSince=performance.now();
     camMode=m;navZoomOff=m==='nav'?navZoomOff:0;
     const b=$('#cLocate');if(b){b.innerHTML=`<svg><use href="#${m==='heading'?'i-heading':m==='follow'?'i-locate-on':'i-locate'}"/></svg>`;b.classList.toggle('on',m!=='free')}
     puckEl&&puckEl.classList.toggle('nav',m==='nav');
@@ -134,7 +150,7 @@ const MapView = App.Map = (()=>{
     if(m!=='free'){if(f){o.center=[(disp||f).lon,(disp||f).lat]}busy(650);map.easeTo(o)}
     App.emit('cam',m)}
   function busy(ms){App.state.mapBusy=true;clearTimeout(busy.t);busy.t=setTimeout(()=>{App.state.mapBusy=false},ms)}
-  function updatePadding(){if(!map||App.state.mapBusy||touching)return;map.setPadding(padFor(camMode==='nav'?'nav':'x'))}
+  let lastPad='';function updatePadding(){if(!map||App.state.mapBusy||touching)return;const p=padFor(camMode==='nav'?'nav':'x');const k=p&&[p.top,p.bottom,p.left,p.right].map(x=>Math.round(x||0)).join(',');if(k===lastPad)return;lastPad=k;map.setPadding(p)}
   function zoomFor(spd){const k=(spd||0)*3.6;return camMode==='nav'?(k>100?15.2:k>70?15.8:k>40?16.4:17.1):(k>90?14.5:k>50?15.5:16.2)}
   const gesturing=()=>touching>0||performance.now()-wheelT<350;
   // fine gesto: decido se restare agganciato alla posizione
@@ -156,11 +172,13 @@ const MapView = App.Map = (()=>{
     if(!disp||G.dist(disp.lat,disp.lon,plat,plon)>400){disp={lat:plat,lon:plon};dispHd=hd||0}
     const k=1-Math.exp(-dt/0.16);disp.lat+=(plat-disp.lat)*k;disp.lon+=(plon-disp.lon)*k;
     if(hd!=null)dispHd=(dispHd+G.sdiff(dispHd,hd)*(1-Math.exp(-dt/(App.state.hdSrc==='compass'?0.3:0.22)))+360)%360;
-    puck.setLngLat([disp.lon,disp.lat]);puck.setRotation(dispHd);
-    if(App.state.navigating&&App.Nav.drawHead&&t-(frame.hT||0)>45){frame.hT=t;App.Nav.drawHead(disp)}
-    puckEl.style.setProperty('--cone',hd!=null&&(f.spd>0.8||App.state.hdSrc==='compass')?1:0);
+    const pm=frame.pm||(frame.pm={});if(Math.abs(pm.la-disp.lat)>2e-8||Math.abs(pm.lo-disp.lon)>2e-8||Math.abs((pm.h||0)-dispHd)>0.05){pm.la=disp.lat;pm.lo=disp.lon;pm.h=dispHd;puck.setLngLat([disp.lon,disp.lat]);puck.setRotation(dispHd)}
+    if(App.state.navigating&&App.Nav.drawHead&&t-(frame.hT||0)>45&&(Math.abs((frame.hLa||0)-disp.lat)>3e-6||Math.abs((frame.hLo||0)-disp.lon)>3e-6)){frame.hT=t;frame.hLa=disp.lat;frame.hLo=disp.lon;App.Nav.drawHead(disp)}
+    const cone=hd!=null&&(f.spd>0.8||App.state.hdSrc==='compass')?1:0;if(cone!==pm.cone){pm.cone=cone;puckEl.style.setProperty('--cone',cone)}
     const pxPerM=map.getZoom()>3?(1/(156543.03*Math.cos(G.rad(disp.lat))/2**map.getZoom())):0;
-    puckEl.style.setProperty('--acc',Math.max(24,Math.min(300,(f.acc||20)*2*pxPerM))+'px');
+    const acc=Math.round(Math.max(24,Math.min(300,(f.acc||20)*2*pxPerM)));if(acc!==pm.acc){pm.acc=acc;puckEl.style.setProperty('--acc',acc+'px')}
+    // HUD e cronometro coprono la mappa: niente ridisegni inutili
+    if(document.body.classList.contains('hudon')||document.body.classList.contains('trkon'))return;
     if(camMode!=='free'&&!App.state.mapBusy&&!gesturing()&&!map.isMoving()){
       const o={center:[disp.lon,disp.lat]};
       if(camMode==='heading'||camMode==='nav'){const br=map.getBearing();if(Math.abs(G.sdiff(br,dispHd))>0.3)o.bearing=dispHd}
@@ -171,7 +189,7 @@ const MapView = App.Map = (()=>{
 
   /* ---------- avvio ---------- */
   async function init(center){await loadBase();
-    map=new maplibregl.Map({container:'map',style:buildStyle(),center:center?[center.lon,center.lat]:[12.6,42.2],zoom:center?14:5.3,attributionControl:false,maxPitch:70,transformRequest:url=>{if(/api\.tomtom\.com\/(map\/1\/tile|traffic\/map\/4\/tile)\//.test(url)&&App.TT)App.TT.use('tiles');return {url}},fadeDuration:150,dragRotate:true,pitchWithRotate:true,touchPitch:true});
+    map=new maplibregl.Map({container:'map',style:buildStyle(),center:center?[center.lon,center.lat]:[12.6,42.2],zoom:center?14:5.3,attributionControl:false,maxPitch:70,transformRequest:url=>{if(/api\.tomtom\.com\/(map\/1\/tile|traffic\/map\/4\/tile)\//.test(url)&&App.TT)App.TT.use('tiles');return {url}},fadeDuration:150,pixelRatio:Math.min(window.devicePixelRatio||1,2),refreshExpiredTiles:false,dragRotate:true,pitchWithRotate:true,touchPitch:true});
     map.addControl(new maplibregl.AttributionControl({compact:true}),'bottom-right');
     map.touchZoomRotate.enableRotation();
     makePuck();

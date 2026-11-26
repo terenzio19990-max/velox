@@ -13,7 +13,8 @@ const Sheet = App.Sheet = (()=>{
   let SB=0;
   function yFor(name){return full-visFor(name)}
   function apply(){el.style.transform=`translate3d(0,${y}px,0)`;const vis=full-y;
-    document.documentElement.style.setProperty('--sheet-h',Math.max(0,vis)+'px');
+    // variabile solo sull'elemento che la usa: impostarla sulla radice ricalcola gli stili di tutta la pagina a ogni fotogramma
+    const rd=apply.rd||(apply.rd=document.getElementById('recdot'));if(rd)rd.style.setProperty('--sheet-h',Math.max(0,vis)+'px');
     for(const f of cbs)f(vis,y)}
   function step(t){const dt=Math.min(0.032,(t-lastT)/1000||0.016);lastT=t;
     const resp=0.34,zeta=dragging?1:currentZeta;const k=(2*Math.PI/resp)**2,c=2*zeta*Math.sqrt(k);

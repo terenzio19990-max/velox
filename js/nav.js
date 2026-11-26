@@ -41,8 +41,10 @@ const Nav = App.Nav = (()=>{
   function update(f,hd){if(!N.active||!rt)return;
     const win0=Math.max(0,idx-30),win1=idx+600;let p=G.proj(f.lat,f.lon,P,win0,win1);
     if(p.d>60)p=G.proj(f.lat,f.lon,P);
-    const thr=Math.max(45,Math.min(90,(f.acc||10)*1.6));
-    if(p.d>thr&&(f.spd||0)>2){offCnt++;if(offCnt>=3&&Date.now()-lastReroute>8000)reroute(f,hd)}else{offCnt=0;
+    // fuori percorso: soglia più stretta e conferma più rapida se la direzione non torna con la strada
+    const thr=Math.max(32,Math.min(75,(f.acc||10)*1.5));const rb=p.b!=null?p.b:null;const wrongDir=hd!=null&&rb!=null&&(f.spd||0)>4&&G.adiff(hd,rb)>60;
+    const off=(p.d>thr||(p.d>20&&wrongDir))&&(f.spd||0)>2;
+    if(off){offCnt++;if((offCnt>=2||(offCnt>=1&&p.d>thr*2))&&Date.now()-lastReroute>(rerouting?12000:4500))reroute(f,hd)}else{offCnt=0;
       if(p.along>=along-40||p.d<15){along=p.along;idx=p.i}}
     // tappe intermedie
     if(legIdx<legEnds.length-1&&along>=legEnds[legIdx]-35){legIdx++;Voice.say('Hai raggiunto la tappa '+legIdx);Voice.beep(2,700);App.toast('Tappa '+legIdx+' raggiunta')}
@@ -80,11 +82,29 @@ const Nav = App.Nav = (()=>{
       c=[s].concat(P.g.slice(p.i+1,j0+1).map(q=>[q[1],q[0]]))}
     else c=P.g.slice(Math.max(0,idx),j0+1).map(q=>[q[1],q[0]]);
     MapView.setData('routeHead',line(c))}
-  async function reroute(f,hd){lastReroute=Date.now();offCnt=0;Voice.say('Ricalcolo il percorso',true);App.toast('Ricalcolo…');
+  /* ricalcolo: 1) subito un rientro calcolato sul telefono (anche senza rete); 2) in parallelo il server, il primo che risponde vince */
+  let rerouting=false,rrId=0;
+  async function reroute(f,hd){lastReroute=Date.now();offCnt=0;const id=++rrId;const old=rt,oldP=P,oldAlong=along;
     const remaining=[{lat:f.lat,lon:f.lon,heading:hd,name:'Posizione'}].concat(stopsLeft.slice(legIdx));
-    try{let r;try{r=(await API.route(remaining,{avoidTolls:App.S.avoidTolls,avoidHighways:App.S.avoidHighways,avoidFerries:App.S.avoidFerries}))[0]}catch(e){r=(await API.routeOSRM(remaining,{}))[0]}
-      r.cost=Plan.cost(r);setup(r,remaining);drawProgress(true);App.emit('navReroute')}
-    catch(e){App.toast('Ricalcolo non riuscito, riprovo');lastReroute=Date.now()-4000}}
+    let local=null;try{local=App.LocalRoute&&App.LocalRoute.rejoin(f,hd,old,oldP,oldAlong)}catch(e){console.warn('rientro locale',e)}
+    if(local){local.cost=old.cost;setup(local,remaining);drawProgress(true);App.emit('navReroute',{local:true});Voice.say('Nuovo percorso',true);App.state.lastReroute={ms:local.ms,src:'local'}}
+    else{Voice.say('Ricalcolo il percorso',true);App.toast('Ricalcolo…')}
+    rerouting=true;const t0=performance.now();
+    const o={avoidTolls:App.S.avoidTolls,avoidHighways:App.S.avoidHighways,avoidFerries:App.S.avoidFerries,alternates:0};
+    const tm=ms=>new Promise((_,rej)=>setTimeout(()=>rej(new Error('tempo scaduto')),ms));
+    const later=(ms,fn)=>new Promise((res,rej)=>setTimeout(()=>fn().then(res,rej),ms));
+    const jobs=[API.route(remaining,o).then(x=>x[0])];
+    if(App.TT&&App.S.tomtomKey&&App.TT.can('route'))jobs.push(API.valhalla?API.valhalla(remaining,o).then(x=>x[0]):Promise.reject());
+    jobs.push(later(local?4000:2500,()=>API.routeOSRM(remaining,{}).then(x=>x[0])));
+    let r=null;try{r=await Promise.race([Promise.any(jobs),tm(local?15000:9000)])}catch(e){r=null}
+    rerouting=false;if(id!==rrId||!N.active)return;
+    if(!r||!r.coords){if(!local){App.toast(navigator.onLine===false?'Senza rete: riprovo appena torna il segnale':'Ricalcolo non riuscito, riprovo');lastReroute=Date.now()-2500}return}
+    // se il rientro locale è già finito sul percorso, tengo quello
+    if(local&&rt&&rt.src==='local'&&along>=(rt.joinAlong||0)-40)return;
+    if(local&&rt!==local)return;
+    r.cost=Plan.cost(r);const fx=App.state.fix||f;const here=[{lat:fx.lat,lon:fx.lon,heading:App.state.hd,name:'Posizione'}].concat(stopsLeft.slice(legIdx));
+    setup(r,here);const pr=G.proj(fx.lat,fx.lon,P);if(pr.d<40){along=pr.along;idx=pr.i}drawProgress(true);App.emit('navReroute',{local:false});
+    App.state.lastReroute={ms:Math.round(performance.now()-t0),src:r.src||'server'};if(!local)Voice.say('Nuovo percorso',true)}
   function arrive(){const d=Plan.st.stops[Plan.st.stops.length-1];App.emit('beforeArrive',d);Voice.beep(2,880);Voice.say('Sei arrivato a destinazione',true);App.toast('Sei arrivato');stop(true);App.emit('arrived',d)}
   function limitHere(){if(!lims.length)return null;return Guard.routeLimit(lims,idx)}
   function steps(){if(!rt)return [];const k=rt.man.findIndex((m,i)=>i>0&&manA[i]>along+4);return rt.man.slice(Math.max(1,k)).map((m,j)=>({m,icon:icon(m),dist:manA[Math.max(1,k)+j]-along}))}

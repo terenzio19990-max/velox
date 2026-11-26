@@ -18,7 +18,7 @@ const Diary = App.Diary = (()=>{
   function finish(c){if(!c)return;persist();Store.del('diaryCur');const dur=(c.tl-c.t0)/1000;if(c.dist<1000||dur<180)return;
     const v=App.vehicle();const mix=v.urb*0.35+v.ext*0.4+v.aut*0.25;const qty=c.dist/1000*mix/100;const price=App.PRICES[v.fuel]||1.9;
     const pts=G.simplify(c.pts,12);const t={id:c.id,t0:c.t0,t1:c.still||c.tl,dist:Math.round(c.dist),moving:Math.round(c.moving),vmax:Math.round(c.vmax),qty:+qty.toFixed(2),cost:+(qty*price).toFixed(2),fuel:v.fuel,veh:v.name,g:G.encode(pts,5),nav:c.nav,from:'',to:''};
-    t.avg=Math.round(t.dist/Math.max(60,t.moving)*3.6);T.unshift(t);T=T.slice(0,300);Store.set('diary',T);
+    t.avg=Math.round(t.dist/Math.max(60,t.moving)*3.6);T.unshift(t);T=T.slice(0,300);Store.set('diary',T);App.emit('tripSaved',t);
     const a=pts[0],b=pts[pts.length-1];Promise.all([API.reverse(a[0],a[1]).catch(()=>null),API.reverse(b[0],b[1]).catch(()=>null)]).then(([x,y])=>{t.from=x?(x.name||x.addr||''):'';t.to=y?(y.name||y.addr||''):'';Store.set('diary',T)})}
   App.on('arrived',()=>{if(cur){cur.still=Date.now();finish(cur);cur=null}});
   // tragitti ripetuti: stessa partenza e arrivo entro 500 m
@@ -52,7 +52,7 @@ const Diary = App.Diary = (()=>{
       <div class="group dbars">${per.map((v,i)=>`<i style="height:${v?Math.max(4,v/mx*100):0}%" title="${i+1}: ${F.n(v,1)} km"></i>`).join('')}</div><div class="rainlab"><span>1</span><span>${Math.round(days/2)}</span><span>${days}</span></div>
       ${reps.length?`<div class="sec"><h3>Tragitti abituali</h3></div><div class="group">${reps.map(e=>App.UI.item({color:'#5856D6',icon:`<b style="font-size:12px">×${e.n}</b>`,t1:esc((e.from||'Partenza')+' → '+(e.to||'Arrivo')),t2:'tempo migliore '+F.dur(e.best)})).join('')}</div>`:''}
       <div class="sec"><h3>Tragitti</h3>${list.length?'<button class="link" id="dCsv">Esporta CSV</button>':''}</div>
-      ${list.length?`<div class="group">${list.map(t=>App.UI.item({attr:`data-t="${t.id}"`,color:t.nav?'var(--accent)':'#FF9500',icon:'<svg><use href="#i-route"/></svg>',t1:esc((t.from||'…')+' → '+(t.to||'…')),t2:`${new Date(t.t0).toLocaleDateString('it-IT',{weekday:'short',day:'numeric'})} ${F.clock(t.t0)} · ${F.km(t.dist)} · ${F.dur((t.t1-t.t0)/1000)}`,chev:true})).join('')}</div>`:'<div class="empty">Nessun tragitto in questo mese.</div>'}
+      ${list.length?`<div class="group">${list.map(t=>App.UI.item({attr:`data-t="${t.id}"`,color:t.nav?'var(--accent)':'#FF9500',icon:'<svg><use href="#i-route"/></svg>',t1:esc((t.from||'…')+' → '+(t.to||'…')),t2:`${new Date(t.t0).toLocaleDateString('it-IT',{weekday:'short',day:'numeric'})} ${F.clock(t.t0)} · ${F.km(t.dist)} · ${F.dur((t.t1-t.t0)/1000)}${t.score?' · voto '+t.score.v:''}`,chev:true})).join('')}</div>`:'<div class="empty">Nessun tragitto in questo mese.</div>'}
       <p class="note">Registro con Sentinella aperta, sopra i 15 km/h; il tragitto finisce dopo 5 minuti da fermo. I dati restano solo sul telefono.</p>`,
       bind(r){$('#dPrev').onclick=()=>{month=m?[y,m-1]:[y-1,11];App.UI.render()};$('#dNext').onclick=()=>{month=m===11?[y+1,0]:[y,m+1];App.UI.render()};
         const c=$('#dCsv');if(c)c.onclick=()=>download(`sentinella-${y}-${String(m+1).padStart(2,'0')}.csv`,csv(list),'text/csv');
@@ -64,5 +64,5 @@ const Diary = App.Diary = (()=>{
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px"><button class="btn" id="tGpx">Esporta GPX</button><button class="btn" id="tDel" style="color:var(--red)">Elimina</button></div>`,
       bind(){setTimeout(()=>showTrack(t),150);$('#tGpx').onclick=()=>download(`tragitto-${new Date(t.t0).toISOString().slice(0,10)}.gpx`,gpx(t),'application/gpx+xml');
         $('#tDel').onclick=async()=>{if(await App.confirm('Eliminare questo tragitto?','','Elimina',true)){T=T.filter(x=>x.id!==id);Store.set('diary',T);showTrack(null);App.UI.back()}}}}};
-  return {get trips(){return T},get recording(){return !!cur},finish:()=>{if(cur){finish(cur);cur=null}},repeats};
+  return {get trips(){return T},get recording(){return !!cur},get curId(){return cur&&cur.id},save:()=>Store.set('diary',T),finish:()=>{if(cur){finish(cur);cur=null}},repeats};
 })();

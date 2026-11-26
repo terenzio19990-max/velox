@@ -108,7 +108,7 @@ const Turns = App.Turns = (()=>{
   function startAnim(){if(raf||!fx())return;raf=requestAnimationFrame(frame)}
   const spring=t=>t<=0?0:1-Math.exp(-5.5*t)*Math.cos(8.5*t);
   function frame(now){raf=0;if(!cur||!Nav.active||!fx()||!MapView.map||!MapView.map.getLayer('man-top')){style();return}raf=requestAnimationFrame(frame);
-    if(document.hidden||now-lastF<33)return;lastF=now;const map=MapView.map;const t=(now-anim.t0)/1000;
+    if(document.hidden||now-lastF<33||document.body.classList.contains('hudon'))return;lastF=now;const map=MapView.map;const t=(now-anim.t0)/1000;
     // 1) la freccia si disegna dalla strada verso la punta
     if(anim.on&&t<0.6){publish(cur.A,Math.min(1,1-Math.pow(1-t/0.52,3)))}else if(anim.on){anim.on=false;publish(cur.A,1)}
     // 2) esce dalla strada con un rimbalzo e sale man mano che ti avvicini, poi fluttua

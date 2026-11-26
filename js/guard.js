@@ -50,17 +50,19 @@ const Guard = App.Guard = (()=>{
     const fb=CLS_FALL[e.cls]||null;return {v:adjLim(e.lim||fb,e.cls),est:!e.lim,road:e.name,cls:e.cls}}
 
   /* ---------- tick principale (ogni fix GPS) ---------- */
-  let overSince=0,lastOverVoice=0;
+  let overSince=0,lastOverVoice=0,lastLx=null;
   const announced=new Map();const approachSaid=new Set();
   function tick(f,hd){
     // limite
     const nv=App.Nav&&App.Nav.active?App.Nav.limitHere():null;
     if(nv)L=nv;else if(!App.state.sim)freeLimit(f,hd);
+    // correzioni dei limiti fatte da te o dalla community
+    const fx=App.Fixes&&App.Fixes.at(f,hd);const Lx=fx?{v:fx.v?adjLim(fx.v,L.cls):null,est:false,road:L.road,cls:L.cls,fixed:true}:L;lastLx=Lx;
     const kmh=Math.round((f.spd||0)*3.6);
-    const over=L.v&&kmh>L.v+S.margin;
+    const over=Lx.v&&kmh>Lx.v+S.margin;
     if(over){if(!overSince)overSince=f.t}else overSince=0;
-    if(over&&f.t-overSince>3000&&Date.now()-lastOverVoice>25000){lastOverVoice=Date.now();Voice.beep(2,990);Voice.say('Limite '+L.v)}
-    App.emit('hud',{kmh,lim:L.v,est:L.est,over,road:L.road});
+    if(over&&f.t-overSince>3000&&Date.now()-lastOverVoice>25000){lastOverVoice=Date.now();Voice.beep(2,990);Voice.say('Limite '+Lx.v)}
+    App.emit('hud',{kmh,lim:Lx.v,est:Lx.est,over,road:Lx.road,fixed:!!Lx.fixed});
     checkTutor(f,hd);
     checkCams(f,hd,kmh)}
 
@@ -171,5 +173,5 @@ const Guard = App.Guard = (()=>{
     index();publish();return d.cams.length}
 
   return {load,tick,publish,stat,allCams,allTuts,nearCams,report,setStatus,removeUser,refreshArea,startManual,end,saveManual,band,tol,thr,adjLim,
-    get act(){return Tut.act},get hist(){return HIST},clearHist,get info(){return dataInfo},get limit(){return L},set limit(v){L=v},hideAlert,routeLimit,CLS_FALL};
+    get act(){return Tut.act},get hist(){return HIST},clearHist,get info(){return dataInfo},get limit(){return lastLx||L},set limit(v){L=v},hideAlert,routeLimit,CLS_FALL};
 })();

@@ -33,7 +33,7 @@ const G = App.G = (()=>{
 })();
 
 /* ---------- formattazione ---------- */
-App.VERSION='2.8';App.BUILD='25 novembre 2026';
+App.VERSION='3.0';App.BUILD='25 novembre 2026';
 const F = App.F = {
   km(m){if(m==null||!isFinite(m))return '–';if(m<995)return (m<100?Math.round(m/5)*5:Math.round(m/10)*10)+' m';const k=m/1000;return (k<10?k.toFixed(1):Math.round(k)).toString().replace('.',',')+' km'},
   kmParts(m){const s=F.km(m);const i=s.lastIndexOf(' ');return [s.slice(0,i),s.slice(i+1)]},
@@ -62,7 +62,7 @@ const DEF = {
   avoidTolls:false, avoidHighways:false, avoidFerries:false,
   vehicle:'v1', people:1, timeValue:0, tomtomKey:'', traffic:false, onboarded:false,
   myName:'', googleKey:'', spClient:'', amToken:'', autoRain:true, community:true,
-  hzSignals:false, hzBumps:true, hzRail:true, hzRough:true, hzCurves:true, hzCurvesVoice:true, manArrows:true, manZoom:true, manFx:true, hzScenic:true, hzReports:true, wxRoute:true,
+  hzSignals:false, hzBumps:true, hzRail:true, hzRough:true, hzCurves:true, hzCurvesVoice:true, manArrows:true, manZoom:true, manFx:true, junctionView:true, breakRemind:true, breakMins:120, hzScenic:true, hzReports:true, wxRoute:true,
   copiVoice:true, copiSpeed:1.12, funRoute:false, shareLiveNav:false
 };
 App.S = Object.assign({}, DEF, Store.get('set',{}));
@@ -94,7 +94,7 @@ App.saveVeh = ()=>Store.set('veh',App.vehicles);
 App.vehicle = ()=>App.vehicles.find(v=>v.id===App.S.vehicle)||App.vehicles[0];
 
 /* ---------- tema ---------- */
-App.isDark = ()=>App.S.theme==='dark'||(App.S.theme==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);
+App.isDark = ()=>App.S.mapType==='neon'||App.S.theme==='dark'||(App.S.theme==='auto'&&matchMedia('(prefers-color-scheme: dark)').matches);
 App.applyTheme = ()=>{document.documentElement.classList.toggle('dark',App.isDark());const m=$('meta[name=theme-color]');if(m)m.content=App.isDark()?'#000000':'#F2F2F7';};
 matchMedia('(prefers-color-scheme: dark)').addEventListener('change',()=>{if(App.S.theme==='auto'){App.applyTheme();App.emit('theme')}});
 App.applyTheme();

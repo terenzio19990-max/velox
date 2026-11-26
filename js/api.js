@@ -114,5 +114,5 @@ const API = App.API = (()=>{
         man.push({type:m.type==='arrive'?4:m.type==='depart'?1:/left/.test(mod)?15:/right/.test(mod)?10:8,text,alert:text,pre:text,post:'',succ:'',len:st.distance,time:st.duration,i,street:nm,begin:nm,toll:/^A\d/.test(ref)&&!FREE.test(ref),hw:/^A\d/.test(ref),exits:m.exit||0,leg:li})}));
       return {coords:coordsAll,man,legs:rt.legs.map(l=>({shape:null,base:0,len:l.distance,time:l.duration})),dist:rt.distance,time:rt.duration,hasToll:man.some(x=>x.toll),hasHw:man.some(x=>x.hw),src:'osrm'}})}
 
-  return {overpass,search,reverse,osmTags,poisNear,poisAlong,route,optimize,routeLimits,locate,routeOSRM,tfetch};
+  return {overpass,search,reverse,osmTags,poisNear,poisAlong,route,valhalla:route,optimize,routeLimits,locate,routeOSRM,tfetch};
 })();
